@@ -24,22 +24,24 @@ Após propagar (minutos a horas), confirma com `nslookup admin.peladapro.cloud` 
 
 ## Conta administrador (ADM)
 
-- **E-mail padrão (dev):** `admin@peladapro.cloud`  
-- **Senha padrão (dev):** `PeladaPro!Admin2025`  
+Valores de referência (iguais a `web/.env.example` e ao build Docker por defeito):
 
-Em produção, **não commites** email/senha no Git. Define no painel da Hostinger (variáveis do projeto / Docker), num `.env` no servidor (fora do repositório) ou como **build-args** na imagem Docker.
+- **E-mail:** `admin@peladapro.cloud`  
+- **Senha:** `PeladaPro!Admin2025`  
+
+O build Docker (`web/Dockerfile`) usa **por defeito** estes mesmos valores; um `docker build` simples já gera o painel com esse login.
+
+Para **outras** credenciais sem mudar o repositório, passa **build-args** ou variáveis no painel Hostinger / CI:
 
 ```env
-NEXT_PUBLIC_PLATFORM_ADMIN_EMAIL=seu@email.com
-NEXT_PUBLIC_PLATFORM_ADMIN_PASSWORD=senha_forte_e_unica
+NEXT_PUBLIC_PLATFORM_ADMIN_EMAIL=outro@email.com
+NEXT_PUBLIC_PLATFORM_ADMIN_PASSWORD=outra_senha
 ```
-
-Exemplo de build da imagem `web` (a partir da raiz do repositório):
 
 ```bash
 docker build -f web/Dockerfile web \
-  --build-arg NEXT_PUBLIC_PLATFORM_ADMIN_EMAIL="seu@email.com" \
-  --build-arg NEXT_PUBLIC_PLATFORM_ADMIN_PASSWORD='sua_senha_segura'
+  --build-arg NEXT_PUBLIC_PLATFORM_ADMIN_EMAIL="outro@email.com" \
+  --build-arg NEXT_PUBLIC_PLATFORM_ADMIN_PASSWORD='outra_senha'
 ```
 
 > **Segurança:** variáveis `NEXT_PUBLIC_*` ficam no JavaScript enviado ao browser — qualquer pessoa pode inspecionar. Para produção séria, migra para login via API com JWT, senha só no servidor e cookie `httpOnly`. **Não partilhes a senha de admin em chats ou tickets**; se expuseres, altera-a de seguida.

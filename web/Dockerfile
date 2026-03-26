@@ -14,9 +14,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-# Injetadas no build (obrigatórias para credenciais ADM no bundle Next.js)
-ARG NEXT_PUBLIC_PLATFORM_ADMIN_EMAIL=
-ARG NEXT_PUBLIC_PLATFORM_ADMIN_PASSWORD=
+# Alinhado a web/.env.example; em produção podes sobrepor com --build-arg
+ARG NEXT_PUBLIC_PLATFORM_ADMIN_EMAIL=admin@peladapro.cloud
+ARG NEXT_PUBLIC_PLATFORM_ADMIN_PASSWORD=PeladaPro!Admin2025
 ENV NEXT_PUBLIC_PLATFORM_ADMIN_EMAIL=$NEXT_PUBLIC_PLATFORM_ADMIN_EMAIL
 ENV NEXT_PUBLIC_PLATFORM_ADMIN_PASSWORD=$NEXT_PUBLIC_PLATFORM_ADMIN_PASSWORD
 RUN npm run build
