@@ -1,0 +1,436 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum Position {
+  GOL
+  ZAG
+  LAT
+  VOL
+  MEI
+  ATA
+}
+
+enum Foot {
+  RIGHT
+  LEFT
+  BOTH
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  PROFESSIONAL
+}
+
+enum GroupRole {
+  OWNER
+  ADMIN
+  TREASURER
+  ORGANIZER
+  PLAYER
+  GUEST
+}
+
+enum MatchStatus {
+  SCHEDULED
+  CONFIRMING
+  DRAFT_READY
+  DRAFTING
+  LIVE
+  PAUSED
+  FINISHED
+  CANCELLED
+}
+
+enum ConfirmationStatus {
+  PENDING
+  CONFIRMED
+  MAYBE
+  OUT
+  WAITLISTED
+}
+
+enum EventType {
+  GOAL
+  ASSIST
+  SAVE
+  TACKLE
+  ERROR
+  YELLOW_CARD
+  RED_CARD
+  SUBSTITUTION
+  MATCH_START
+  MATCH_END
+  ROUND_START
+  ROUND_END
+}
+
+enum AwardType {
+  MVP
+  TOP_SCORER
+  BEST_ASSIST
+  BEST_GOALKEEPER
+  BEST_DEFENDER
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+// ─── Models ─────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  avatarUrl    String?  @map("avatar_url")
+  phone        String?
+  provider     String   @default("local")
+  refreshToken String?  @map("refresh_token")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  profile       PlayerProfile?
+  memberships   GroupMember[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model PlayerProfile {
+  id                 String     @id @default(cuid())
+  userId             String     @unique @map("user_id")
+  nickname           String?
+  bio                String?
+  primaryPosition    Position?  @map("primary_position")
+  secondaryPositions Position[] @map("secondary_positions")
+  dominantFoot       Foot?      @map("dominant_foot")
+  skillLevel         SkillLevel @default(INTERMEDIATE) @map("skill_level")
+  city               String?
+  overall            Float      @default(5.0)
+  totalMatches       Int        @default(0) @map("total_matches")
+  totalGoals         Int        @default(0) @map("total_goals")
+  totalAssists       Int        @default(0) @map("total_assists")
+  totalWins          Int        @default(0) @map("total_wins")
+  totalDraws         Int        @default(0) @map("total_draws")
+  totalLosses        Int        @default(0) @map("total_losses")
+  presenceRate       Float      @default(0) @map("presence_rate")
+  currentStreak      Int        @default(0) @map("current_streak")
+  isPublicProfile    Boolean    @default(true) @map("is_public_profile")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamPlayers   TeamPlayer[]
+  confirmations MatchConfirmation[]
+  events        MatchEvent[]
+  ratings       PlayerRating[]     @relation("RatedPlayer")
+  givenRatings  PlayerRating[]     @relation("RaterPlayer")
+  awards        PlayerAward[]
+  wallets       Wallet[]
+  checkins      Checkin[]
+  waitingList   WaitingListEntry[]
+
+  @@index([userId])
+  @@index([overall])
+  @@map("player_profiles")
+}
+
+model Group {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  avatarUrl       String?  @map("avatar_url")
+  inviteCode      String   @unique @map("invite_code")
+  isActive        Boolean  @default(true) @map("is_active")
+  defaultLocation String?  @map("default_location")
+  defaultDays     Int[]    @map("default_days")
+  defaultTime     String?  @map("default_time")
+  playerLimit     Int      @default(16) @map("player_limit")
+  goalkeeperLimit Int      @default(2) @map("goalkeeper_limit")
+  matchDuration   Int      @default(60) @map("match_duration")
+  monthlyFee      Float?   @map("monthly_fee")
+  dailyFee        Float?   @map("daily_fee")
+  autoCharge      Boolean  @default(false) @map("auto_charge")
+  draftCriteria   Json?    @map("draft_criteria")
+  rankingFormat   String?  @map("ranking_format")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  members       GroupMember[]
+  matches       Match[]
+  financialTxns FinancialTransaction[]
+  wallets       Wallet[]
+  auditLogs     AuditLog[]
+
+  @@index([inviteCode])
+  @@map("groups")
+}
+
+model GroupMember {
+  id       String    @id @default(cuid())
+  userId   String    @map("user_id")
+  groupId  String    @map("group_id")
+  role     GroupRole @default(PLAYER)
+  joinedAt DateTime  @default(now()) @map("joined_at")
+  isActive Boolean   @default(true) @map("is_active")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@index([groupId])
+  @@index([userId])
+  @@map("group_members")
+}
+
+model Match {
+  id              String      @id @default(cuid())
+  groupId         String      @map("group_id")
+  title           String?
+  location        String?
+  scheduledAt     DateTime    @map("scheduled_at")
+  startedAt       DateTime?   @map("started_at")
+  endedAt         DateTime?   @map("ended_at")
+  status          MatchStatus @default(SCHEDULED)
+  playerLimit     Int         @default(16) @map("player_limit")
+  goalkeeperLimit Int         @default(2) @map("goalkeeper_limit")
+  currentRound    Int         @default(1) @map("current_round")
+  notes           String?
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  group         Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  confirmations MatchConfirmation[]
+  waitingList   WaitingListEntry[]
+  checkins      Checkin[]
+  teams         Team[]
+  events        MatchEvent[]
+  ratings       PlayerRating[]
+  awards        PlayerAward[]
+
+  @@index([groupId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@map("matches")
+}
+
+model MatchConfirmation {
+  id           String             @id @default(cuid())
+  matchId      String             @map("match_id")
+  playerId     String             @map("player_id")
+  status       ConfirmationStatus @default(PENDING)
+  isGoalkeeper Boolean            @default(false) @map("is_goalkeeper")
+  confirmedAt  DateTime?          @map("confirmed_at")
+
+  match  Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, playerId])
+  @@index([matchId])
+  @@map("match_confirmations")
+}
+
+model WaitingListEntry {
+  id       String @id @default(cuid())
+  matchId  String @map("match_id")
+  playerId String @map("player_id")
+  position Int
+
+  match  Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, playerId])
+  @@index([matchId])
+  @@map("waiting_list_entries")
+}
+
+model Checkin {
+  id          String   @id @default(cuid())
+  matchId     String   @map("match_id")
+  playerId    String   @map("player_id")
+  checkedInAt DateTime @default(now()) @map("checked_in_at")
+  method      String   @default("manual")
+
+  match  Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, playerId])
+  @@index([matchId])
+  @@map("checkins")
+}
+
+model Team {
+  id       String  @id @default(cuid())
+  matchId  String  @map("match_id")
+  name     String
+  color    String?
+  round    Int     @default(1)
+  score    Int     @default(0)
+  isWinner Boolean @default(false) @map("is_winner")
+
+  match   Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  players TeamPlayer[]
+
+  @@index([matchId])
+  @@map("teams")
+}
+
+model TeamPlayer {
+  id        String  @id @default(cuid())
+  teamId    String  @map("team_id")
+  playerId  String  @map("player_id")
+  position  String?
+  isCaptain Boolean @default(false) @map("is_captain")
+
+  team   Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, playerId])
+  @@index([teamId])
+  @@map("team_players")
+}
+
+model MatchEvent {
+  id       String    @id @default(cuid())
+  matchId  String    @map("match_id")
+  playerId String?   @map("player_id")
+  teamId   String?   @map("team_id")
+  type     EventType
+  minute   Int?
+  round    Int?
+  details  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  match  Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player PlayerProfile? @relation(fields: [playerId], references: [id], onDelete: SetNull)
+
+  @@index([matchId])
+  @@index([playerId])
+  @@map("match_events")
+}
+
+model PlayerRating {
+  id       String @id @default(cuid())
+  matchId  String @map("match_id")
+  playerId String @map("player_id")
+  raterId  String @map("rater_id")
+  score    Float
+
+  match  Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player PlayerProfile @relation("RatedPlayer", fields: [playerId], references: [id], onDelete: Cascade)
+  rater  PlayerProfile @relation("RaterPlayer", fields: [raterId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, playerId, raterId])
+  @@index([matchId])
+  @@map("player_ratings")
+}
+
+model PlayerAward {
+  id       String    @id @default(cuid())
+  matchId  String    @map("match_id")
+  playerId String    @map("player_id")
+  type     AwardType
+
+  match  Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, type])
+  @@index([matchId])
+  @@map("player_awards")
+}
+
+model FinancialTransaction {
+  id          String          @id @default(cuid())
+  groupId     String          @map("group_id")
+  walletId    String?         @map("wallet_id")
+  type        TransactionType
+  category    String?
+  amount      Float
+  description String?
+  date        DateTime        @default(now())
+  status      PaymentStatus   @default(PENDING)
+  reference   String?
+  createdBy   String?         @map("created_by")
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  group  Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  wallet Wallet? @relation(fields: [walletId], references: [id], onDelete: SetNull)
+
+  @@index([groupId])
+  @@index([walletId])
+  @@map("financial_transactions")
+}
+
+model Wallet {
+  id       String @id @default(cuid())
+  playerId String @map("player_id")
+  groupId  String @map("group_id")
+  balance  Float  @default(0)
+
+  player       PlayerProfile          @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  group        Group                  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  transactions FinancialTransaction[]
+
+  @@unique([playerId, groupId])
+  @@index([groupId])
+  @@map("wallets")
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  type      String
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([readAt])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  groupId   String?  @map("group_id")
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  oldData   Json?    @map("old_data")
+  newData   Json?    @map("new_data")
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  group Group? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([groupId])
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}

@@ -1,0 +1,424 @@
+services:
+  boleiros-db:
+    image: postgres:16-alpine
+    container_name: boleiros-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: boleiros
+      POSTGRES_USER: boleiros
+      POSTGRES_PASSWORD: B0l31r0s_Pr0_2026!
+    volumes:
+      - boleiros-db-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U boleiros -d boleiros"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - boleiros-network
+
+  boleiros-redis:
+    image: redis:7-alpine
+    container_name: boleiros-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6380:6379"
+    volumes:
+      - boleiros-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - boleiros-network
+
+  boleiros-api:
+    image: node:20-slim
+    container_name: boleiros-api
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      DATABASE_URL: postgresql://boleiros:B0l31r0s_Pr0_2026!@boleiros-db:5432/boleiros
+      REDIS_URL: redis://boleiros-redis:6379
+      JWT_SECRET: b0l31r0s_jwt_s3cr3t_k3y_2026_pr0duct10n
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      PORT: "3001"
+      NODE_ENV: production
+    ports:
+      - "3001:3001"
+    depends_on:
+      boleiros-db:
+        condition: service_healthy
+      boleiros-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    volumes:
+      - boleiros-api-data:/app
+    command:
+      - /bin/bash
+      - -c
+      - |
+        set -e
+        apt-get update && apt-get install -y curl openssl procps && rm -rf /var/lib/apt/lists/*
+        if [ -f "server.js" ] && [ -d "node_modules" ]; then
+          echo "App already built, starting..."
+          npx prisma db push --accept-data-loss 2>/dev/null || true
+          exec node server.js
+        fi
+        echo '{"name":"boleiros-api","version":"0.1.0","private":true,"dependencies":{"express":"^4.21.0","cors":"^2.8.5","helmet":"^8.0.0","bcryptjs":"^2.4.3","jsonwebtoken":"^9.0.2","@prisma/client":"^6.0.0","ioredis":"^5.4.0"},"devDependencies":{"prisma":"^6.0.0"}}' > package.json
+
+        mkdir -p prisma
+        cat > prisma/schema.prisma << 'SCHEMAEOF'
+        generator client {
+          provider = "prisma-client-js"
+          binaryTargets = ["native", "debian-openssl-3.0.x"]
+        }
+        datasource db {
+          provider = "postgresql"
+          url      = env("DATABASE_URL")
+        }
+        model User {
+          id String @id @default(cuid())
+          email String @unique
+          passwordHash String
+          name String
+          avatarUrl String?
+          phone String?
+          refreshToken String?
+          createdAt DateTime @default(now())
+          updatedAt DateTime @updatedAt
+          profile PlayerProfile?
+          memberships GroupMember[]
+          notifications Notification[]
+          @@map("users")
+        }
+        model PlayerProfile {
+          id String @id @default(cuid())
+          userId String @unique
+          nickname String?
+          bio String?
+          primaryPosition String @default("MEI")
+          dominantFoot String @default("RIGHT")
+          skillLevel String @default("INTERMEDIATE")
+          city String?
+          overall Float @default(5.0)
+          totalMatches Int @default(0)
+          totalGoals Int @default(0)
+          totalAssists Int @default(0)
+          totalWins Int @default(0)
+          totalDraws Int @default(0)
+          totalLosses Int @default(0)
+          presenceRate Float @default(0)
+          currentStreak Int @default(0)
+          createdAt DateTime @default(now())
+          updatedAt DateTime @updatedAt
+          user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+          confirmations MatchConfirmation[]
+          teamPlayers TeamPlayer[]
+          events MatchEvent[]
+          ratings PlayerRating[]
+          awards PlayerAward[]
+          wallets Wallet[]
+          @@map("player_profiles")
+        }
+        model Group {
+          id String @id @default(cuid())
+          name String
+          description String?
+          avatarUrl String?
+          inviteCode String @unique
+          isActive Boolean @default(true)
+          defaultLocation String?
+          playerLimit Int @default(16)
+          goalkeeperLimit Int @default(2)
+          matchDuration Int @default(60)
+          monthlyFee Float?
+          dailyFee Float?
+          createdAt DateTime @default(now())
+          updatedAt DateTime @updatedAt
+          members GroupMember[]
+          matches Match[]
+          transactions FinancialTransaction[]
+          wallets Wallet[]
+          @@map("groups")
+        }
+        model GroupMember {
+          id String @id @default(cuid())
+          userId String
+          groupId String
+          role String @default("PLAYER")
+          joinedAt DateTime @default(now())
+          isActive Boolean @default(true)
+          user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+          group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+          @@unique([userId, groupId])
+          @@map("group_members")
+        }
+        model Match {
+          id String @id @default(cuid())
+          groupId String
+          title String?
+          location String?
+          scheduledAt DateTime
+          startedAt DateTime?
+          endedAt DateTime?
+          status String @default("SCHEDULED")
+          playerLimit Int @default(16)
+          goalkeeperLimit Int @default(2)
+          currentRound Int @default(0)
+          notes String?
+          createdAt DateTime @default(now())
+          updatedAt DateTime @updatedAt
+          group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+          confirmations MatchConfirmation[]
+          teams Team[]
+          events MatchEvent[]
+          ratings PlayerRating[]
+          awards PlayerAward[]
+          @@map("matches")
+        }
+        model MatchConfirmation {
+          id String @id @default(cuid())
+          matchId String
+          playerId String
+          status String @default("PENDING")
+          isGoalkeeper Boolean @default(false)
+          confirmedAt DateTime?
+          createdAt DateTime @default(now())
+          updatedAt DateTime @updatedAt
+          match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+          player PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+          @@unique([matchId, playerId])
+          @@map("match_confirmations")
+        }
+        model Team {
+          id String @id @default(cuid())
+          matchId String
+          name String
+          color String?
+          round Int @default(1)
+          score Int @default(0)
+          isWinner Boolean?
+          createdAt DateTime @default(now())
+          match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+          players TeamPlayer[]
+          @@map("teams")
+        }
+        model TeamPlayer {
+          id String @id @default(cuid())
+          teamId String
+          playerId String
+          position String?
+          isCaptain Boolean @default(false)
+          team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+          player PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+          @@unique([teamId, playerId])
+          @@map("team_players")
+        }
+        model MatchEvent {
+          id String @id @default(cuid())
+          matchId String
+          playerId String?
+          teamId String?
+          type String
+          minute Int?
+          round Int @default(1)
+          details Json?
+          createdAt DateTime @default(now())
+          match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+          player PlayerProfile? @relation(fields: [playerId], references: [id])
+          @@map("match_events")
+        }
+        model PlayerRating {
+          id String @id @default(cuid())
+          matchId String
+          playerId String
+          raterId String
+          score Float
+          createdAt DateTime @default(now())
+          match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+          player PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+          @@unique([matchId, playerId, raterId])
+          @@map("player_ratings")
+        }
+        model PlayerAward {
+          id String @id @default(cuid())
+          matchId String
+          playerId String
+          type String
+          createdAt DateTime @default(now())
+          match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+          player PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+          @@unique([matchId, type])
+          @@map("player_awards")
+        }
+        model FinancialTransaction {
+          id String @id @default(cuid())
+          groupId String
+          walletId String?
+          type String
+          category String
+          amount Float
+          description String?
+          date DateTime @default(now())
+          status String @default("PENDING")
+          reference String?
+          createdBy String
+          createdAt DateTime @default(now())
+          updatedAt DateTime @updatedAt
+          group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+          wallet Wallet? @relation(fields: [walletId], references: [id])
+          @@map("financial_transactions")
+        }
+        model Wallet {
+          id String @id @default(cuid())
+          playerId String
+          groupId String
+          balance Float @default(0)
+          createdAt DateTime @default(now())
+          updatedAt DateTime @updatedAt
+          player PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+          group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+          transactions FinancialTransaction[]
+          @@unique([playerId, groupId])
+          @@map("wallets")
+        }
+        model Notification {
+          id String @id @default(cuid())
+          userId String
+          type String
+          title String
+          body String
+          data Json?
+          readAt DateTime?
+          createdAt DateTime @default(now())
+          user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+          @@map("notifications")
+        }
+        model AuditLog {
+          id String @id @default(cuid())
+          userId String?
+          groupId String?
+          action String
+          entity String
+          entityId String
+          oldData Json?
+          newData Json?
+          ipAddress String?
+          createdAt DateTime @default(now())
+          @@map("audit_logs")
+        }
+        SCHEMAEOF
+
+        cat > server.js << 'SERVEREOF'
+        const express = require("express");
+        const cors = require("cors");
+        const helmet = require("helmet");
+        const bcrypt = require("bcryptjs");
+        const jwt = require("jsonwebtoken");
+        const { PrismaClient } = require("@prisma/client");
+        const prisma = new PrismaClient();
+        const app = express();
+        const PORT = process.env.PORT || 3001;
+        const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret";
+        app.use(cors({ origin: "*" }));
+        app.use(helmet({ contentSecurityPolicy: false }));
+        app.use(express.json());
+        app.get("/health", (req, res) => res.json({ status: "ok", service: "boleiros-api", timestamp: new Date().toISOString() }));
+        function auth(req, res, next) {
+          const t = req.headers.authorization?.replace("Bearer ", "");
+          if (!t) return res.status(401).json({ error: "Token required" });
+          try { req.user = jwt.verify(t, JWT_SECRET); next(); } catch(e) { return res.status(401).json({ error: "Invalid token" }); }
+        }
+        function tokens(uid) {
+          return { accessToken: jwt.sign({ sub: uid }, JWT_SECRET, { expiresIn: "15m" }), refreshToken: jwt.sign({ sub: uid, type: "refresh" }, JWT_SECRET, { expiresIn: "7d" }) };
+        }
+        function invCode() { return Math.random().toString(36).substring(2, 8).toUpperCase(); }
+        app.post("/auth/register", async (req, res) => { try { const { email, password, name } = req.body; if (!email||!password||!name) return res.status(400).json({ error: "Missing fields" }); if (await prisma.user.findUnique({ where: { email } })) return res.status(409).json({ error: "Email exists" }); const ph = await bcrypt.hash(password, 12); const u = await prisma.user.create({ data: { email, passwordHash: ph, name, profile: { create: { nickname: name.split(" ")[0] } } }, include: { profile: true } }); const t = tokens(u.id); await prisma.user.update({ where: { id: u.id }, data: { refreshToken: t.refreshToken } }); res.status(201).json({ ...t, user: { id: u.id, email: u.email, name: u.name, profile: u.profile } }); } catch(e) { res.status(500).json({ error: e.message }); } });
+        app.post("/auth/login", async (req, res) => { try { const { email, password } = req.body; const u = await prisma.user.findUnique({ where: { email }, include: { profile: true } }); if (!u || !(await bcrypt.compare(password, u.passwordHash))) return res.status(401).json({ error: "Invalid credentials" }); const t = tokens(u.id); await prisma.user.update({ where: { id: u.id }, data: { refreshToken: t.refreshToken } }); res.json({ ...t, user: { id: u.id, email: u.email, name: u.name, profile: u.profile } }); } catch(e) { res.status(500).json({ error: e.message }); } });
+        app.post("/auth/refresh", async (req, res) => { try { const p = jwt.verify(req.body.refreshToken, JWT_SECRET); const u = await prisma.user.findUnique({ where: { id: p.sub } }); if (!u || u.refreshToken !== req.body.refreshToken) return res.status(401).json({ error: "Invalid" }); const t = tokens(u.id); await prisma.user.update({ where: { id: u.id }, data: { refreshToken: t.refreshToken } }); res.json(t); } catch(e) { res.status(401).json({ error: "Invalid" }); } });
+        app.get("/auth/me", auth, async (req, res) => { const u = await prisma.user.findUnique({ where: { id: req.user.sub }, include: { profile: true, memberships: { include: { group: true } } } }); if (!u) return res.status(404).json({ error: "Not found" }); res.json({ id: u.id, email: u.email, name: u.name, profile: u.profile, groups: u.memberships }); });
+        app.get("/players/me", auth, async (req, res) => { res.json(await prisma.playerProfile.findUnique({ where: { userId: req.user.sub } })); });
+        app.put("/players/me", auth, async (req, res) => { const { nickname, bio, primaryPosition, dominantFoot, skillLevel, city } = req.body; res.json(await prisma.playerProfile.update({ where: { userId: req.user.sub }, data: { nickname, bio, primaryPosition, dominantFoot, skillLevel, city } })); });
+        app.post("/groups", auth, async (req, res) => { try { const { name, description, defaultLocation, playerLimit, goalkeeperLimit, monthlyFee } = req.body; res.status(201).json(await prisma.group.create({ data: { name, description, defaultLocation, inviteCode: invCode(), playerLimit: playerLimit||16, goalkeeperLimit: goalkeeperLimit||2, monthlyFee, members: { create: { userId: req.user.sub, role: "OWNER" } } }, include: { members: true } })); } catch(e) { res.status(500).json({ error: e.message }); } });
+        app.get("/groups", auth, async (req, res) => { const m = await prisma.groupMember.findMany({ where: { userId: req.user.sub, isActive: true }, include: { group: { include: { members: true, matches: { orderBy: { scheduledAt: "asc" }, take: 1 } } } } }); res.json(m.map(x => ({ ...x.group, role: x.role }))); });
+        app.get("/groups/:id", auth, async (req, res) => { const g = await prisma.group.findUnique({ where: { id: req.params.id }, include: { members: { include: { user: { include: { profile: true } } } }, matches: { orderBy: { scheduledAt: "desc" }, take: 10 } } }); if (!g) return res.status(404).json({ error: "Not found" }); res.json(g); });
+        app.post("/groups/:id/join", auth, async (req, res) => { try { const g = await prisma.group.findFirst({ where: { id: req.params.id, inviteCode: req.body.inviteCode } }); if (!g) return res.status(404).json({ error: "Invalid code" }); res.status(201).json(await prisma.groupMember.create({ data: { userId: req.user.sub, groupId: g.id } })); } catch(e) { res.status(500).json({ error: e.message }); } });
+        app.get("/groups/:id/members", auth, async (req, res) => { res.json(await prisma.groupMember.findMany({ where: { groupId: req.params.id, isActive: true }, include: { user: { include: { profile: true } } } })); });
+        app.post("/groups/:gid/matches", auth, async (req, res) => { try { const { title, location, scheduledAt, playerLimit, goalkeeperLimit } = req.body; res.status(201).json(await prisma.match.create({ data: { groupId: req.params.gid, title, location, scheduledAt: new Date(scheduledAt), status: "CONFIRMING", playerLimit: playerLimit||16, goalkeeperLimit: goalkeeperLimit||2 } })); } catch(e) { res.status(500).json({ error: e.message }); } });
+        app.get("/groups/:gid/matches", auth, async (req, res) => { res.json(await prisma.match.findMany({ where: { groupId: req.params.gid }, include: { confirmations: true }, orderBy: { scheduledAt: "desc" } })); });
+        app.get("/matches/:id", auth, async (req, res) => { const m = await prisma.match.findUnique({ where: { id: req.params.id }, include: { confirmations: { include: { player: true } }, teams: { include: { players: { include: { player: true } } } }, events: { orderBy: { createdAt: "asc" } } } }); if (!m) return res.status(404).json({ error: "Not found" }); res.json(m); });
+        app.post("/matches/:id/confirm", auth, async (req, res) => { try { const { status, isGoalkeeper } = req.body; const p = await prisma.playerProfile.findUnique({ where: { userId: req.user.sub } }); if (!p) return res.status(404).json({ error: "No profile" }); res.json(await prisma.matchConfirmation.upsert({ where: { matchId_playerId: { matchId: req.params.id, playerId: p.id } }, update: { status, isGoalkeeper: isGoalkeeper||false, confirmedAt: status==="CONFIRMED"?new Date():null }, create: { matchId: req.params.id, playerId: p.id, status, isGoalkeeper: isGoalkeeper||false, confirmedAt: status==="CONFIRMED"?new Date():null } })); } catch(e) { res.status(500).json({ error: e.message }); } });
+        app.post("/matches/:id/draft", auth, async (req, res) => { try { const m = await prisma.match.findUnique({ where: { id: req.params.id }, include: { confirmations: { where: { status: "CONFIRMED" }, include: { player: true } } } }); if (!m) return res.status(404).json({ error: "Not found" }); const gks = m.confirmations.filter(c=>c.isGoalkeeper); const pls = m.confirmations.filter(c=>!c.isGoalkeeper).sort((a,b)=>(b.player.overall||5)-(a.player.overall||5)); const tA={n:"Time Verde",c:"#22c55e",p:[],o:0}; const tB={n:"Time Branco",c:"#ffffff",p:[],o:0}; if(gks.length>=2){tA.p.push(gks[0]);tB.p.push(gks[1]);tA.o+=gks[0].player.overall||5;tB.o+=gks[1].player.overall||5;} else if(gks.length===1){tA.p.push(gks[0]);tA.o+=gks[0].player.overall||5;} for(let i=0;i<pls.length;i++){const t=(i%2===0)?(tA.o<=tB.o?tA:tB):(tB.o<=tA.o?tB:tA);t.p.push(pls[i]);t.o+=pls[i].player.overall||5;} await prisma.team.deleteMany({where:{matchId:m.id}}); const cA=await prisma.team.create({data:{matchId:m.id,name:tA.n,color:tA.c,players:{create:tA.p.map(x=>({playerId:x.playerId,position:x.player.primaryPosition}))}},include:{players:{include:{player:true}}}}); const cB=await prisma.team.create({data:{matchId:m.id,name:tB.n,color:tB.c,players:{create:tB.p.map(x=>({playerId:x.playerId,position:x.player.primaryPosition}))}},include:{players:{include:{player:true}}}}); await prisma.match.update({where:{id:m.id},data:{status:"DRAFT_READY"}}); res.json({teams:[cA,cB],balance:{teamA:tA.o/(tA.p.length||1),teamB:tB.o/(tB.p.length||1)}}); } catch(e) { res.status(500).json({ error: e.message }); } });
+        app.post("/matches/:id/events", auth, async (req, res) => { try { const { type, playerId, teamId, minute, round, details } = req.body; const ev = await prisma.matchEvent.create({ data: { matchId: req.params.id, type, playerId, teamId, minute, round, details } }); if(type==="GOAL"&&playerId) await prisma.playerProfile.update({where:{id:playerId},data:{totalGoals:{increment:1}}}); if(type==="ASSIST"&&playerId) await prisma.playerProfile.update({where:{id:playerId},data:{totalAssists:{increment:1}}}); res.status(201).json(ev); } catch(e) { res.status(500).json({ error: e.message }); } });
+        app.post("/matches/:id/start", auth, async (req, res) => { res.json(await prisma.match.update({ where: { id: req.params.id }, data: { status: "LIVE", startedAt: new Date(), currentRound: 1 } })); });
+        app.post("/matches/:id/end", auth, async (req, res) => { res.json(await prisma.match.update({ where: { id: req.params.id }, data: { status: "FINISHED", endedAt: new Date() } })); });
+        app.get("/groups/:id/finance", auth, async (req, res) => { const tx = await prisma.financialTransaction.findMany({ where: { groupId: req.params.id }, orderBy: { date: "desc" } }); const inc = tx.filter(t=>t.type==="INCOME").reduce((s,t)=>s+t.amount,0); const exp = tx.filter(t=>t.type==="EXPENSE").reduce((s,t)=>s+t.amount,0); res.json({ balance: inc-exp, totalIncome: inc, totalExpense: exp, transactions: tx }); });
+        app.post("/groups/:id/finance/transactions", auth, async (req, res) => { const { type, category, amount, description, walletId } = req.body; res.status(201).json(await prisma.financialTransaction.create({ data: { groupId: req.params.id, type, category, amount, description, walletId, createdBy: req.user.sub, status: "PAID" } })); });
+        app.get("/notifications", auth, async (req, res) => { res.json(await prisma.notification.findMany({ where: { userId: req.user.sub }, orderBy: { createdAt: "desc" }, take: 50 })); });
+        app.put("/notifications/:id/read", auth, async (req, res) => { res.json(await prisma.notification.update({ where: { id: req.params.id }, data: { readAt: new Date() } })); });
+        async function start() { await prisma.$connect(); console.log("DB connected"); app.listen(PORT, "0.0.0.0", () => console.log("Boleiros API running on port " + PORT)); }
+        start().catch(e => { console.error(e); process.exit(1); });
+        SERVEREOF
+
+        npm install
+        npx prisma generate
+        npx prisma db push --accept-data-loss
+        exec node server.js
+    networks:
+      - boleiros-network
+
+  boleiros-web:
+    image: nginx:alpine
+    container_name: boleiros-web
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    volumes:
+      - boleiros-web-html:/usr/share/nginx/html
+    command:
+      - /bin/sh
+      - -c
+      - |
+        cat > /usr/share/nginx/html/index.html << 'HTMLEOF'
+        <!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>Boleiros.app - Organize suas peladas como um profissional</title><meta name="description" content="A plataforma completa para peladas: confirmacoes, sorteio inteligente, placar ao vivo, rankings e financeiro."><meta name="theme-color" content="#1a472a"><link rel="manifest" href="/manifest.json"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet"><style>*{margin:0;padding:0;box-sizing:border-box}:root{--brand:#16a34a;--pitch:#1a472a;--pitch-light:#2d6a4f;--bg:#fff;--fg:#0a0a0a;--muted:#64748b;--border:#e2e8f0;--surface:#f8fafc}body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased}.font-display{font-family:'Plus Jakarta Sans','Inter',system-ui,sans-serif}header{position:fixed;top:0;left:0;right:0;z-index:50;background:rgba(255,255,255,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}.header-inner{max-width:72rem;margin:0 auto;padding:0 1rem;height:4rem;display:flex;align-items:center;justify-content:space-between}.logo{font-size:1.25rem;font-weight:800;text-decoration:none;color:var(--fg)}.logo span{color:var(--brand)}.nav-links{display:flex;gap:.75rem;align-items:center}.btn{display:inline-flex;align-items:center;justify-content:center;padding:.625rem 1.25rem;border-radius:.75rem;font-weight:600;font-size:.875rem;text-decoration:none;transition:all .2s;cursor:pointer;border:none}.btn-ghost{background:none;color:var(--muted)}.btn-ghost:hover{color:var(--fg)}.btn-primary{background:var(--brand);color:#fff;box-shadow:0 4px 14px rgba(22,163,74,.25)}.btn-primary:hover{background:#15803d}.btn-lg{padding:.875rem 2rem;font-size:1.125rem;border-radius:1rem}.btn-white{background:#fff;color:var(--pitch);font-weight:700}.btn-white:hover{background:#f1f5f9}.btn-outline{background:none;border:2px solid var(--border);color:var(--fg)}.btn-outline:hover{border-color:var(--brand);color:var(--brand)}.hero{padding:8rem 1rem 5rem;text-align:center;position:relative;overflow:hidden}.hero::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:50rem;height:50rem;border-radius:50%;background:radial-gradient(circle,rgba(22,163,74,.08),transparent 70%);z-index:-1}.hero-badge{display:inline-block;padding:.375rem 1rem;background:rgba(22,163,74,.08);color:var(--brand);font-size:.875rem;font-weight:600;border-radius:9999px;margin-bottom:1.5rem}.hero h1{font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:clamp(2.25rem,5vw,3.75rem);font-weight:800;letter-spacing:-.025em;line-height:1.1;margin-bottom:1.5rem}.hero h1 span{background:linear-gradient(135deg,#16a34a,#4ade80);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}.hero p{font-size:1.125rem;color:var(--muted);max-width:36rem;margin:0 auto 2.5rem}.hero-buttons{display:flex;flex-direction:column;gap:1rem;align-items:center}@media(min-width:640px){.hero-buttons{flex-direction:row;justify-content:center}}.hero-sub{font-size:.75rem;color:#94a3b8;margin-top:1rem}.stats{padding:3rem 1rem;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--surface)}.stats-grid{max-width:56rem;margin:0 auto;display:grid;grid-template-columns:repeat(2,1fr);gap:2rem;text-align:center}@media(min-width:640px){.stats-grid{grid-template-columns:repeat(4,1fr)}}.stat-value{font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:1.875rem;font-weight:800;color:var(--brand)}.stat-label{font-size:.875rem;color:var(--muted);margin-top:.25rem}.features{padding:5rem 1rem}.features h2{font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:1.875rem;font-weight:800;text-align:center;margin-bottom:3rem}.features-grid{max-width:72rem;margin:0 auto;display:grid;gap:1.5rem}@media(min-width:640px){.features-grid{grid-template-columns:repeat(2,1fr)}}@media(min-width:1024px){.features-grid{grid-template-columns:repeat(3,1fr)}}.feature-card{padding:1.5rem;border:1px solid var(--border);border-radius:1rem;transition:all .3s}.feature-card:hover{border-color:#86efac;box-shadow:0 10px 25px rgba(22,163,74,.08)}.feature-icon{font-size:2rem;margin-bottom:.75rem}.feature-card h3{font-weight:700;font-size:1.05rem;margin-bottom:.25rem}.feature-card p{font-size:.875rem;color:var(--muted);line-height:1.6}.how{padding:5rem 1rem;background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.how h2{font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:1.875rem;font-weight:800;text-align:center;margin-bottom:3rem}.how-grid{max-width:56rem;margin:0 auto;display:grid;gap:2rem;text-align:center}@media(min-width:640px){.how-grid{grid-template-columns:repeat(4,1fr)}}.how-step{font-family:'Plus Jakarta Sans',system-ui,sans-serif;display:inline-flex;width:3.5rem;height:3.5rem;align-items:center;justify-content:center;border-radius:1rem;background:linear-gradient(135deg,#0f2b18,#1a472a,#2d6a4f);color:#fff;font-weight:800;font-size:1.125rem;margin-bottom:1rem}.how h3{font-weight:700;margin-bottom:.5rem}.how p{font-size:.875rem;color:var(--muted)}.cta{padding:5rem 1rem}.cta-box{max-width:56rem;margin:0 auto;background:linear-gradient(135deg,#0f2b18,#1a472a,#2d6a4f);border-radius:1.5rem;padding:4rem 2rem;text-align:center;color:#fff}.cta-box h2{font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:1.875rem;font-weight:800;margin-bottom:1rem}.cta-box p{color:rgba(255,255,255,.7);margin-bottom:2rem;font-size:1.05rem}.cta-perks{display:flex;gap:1.5rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;font-size:.875rem;color:rgba(255,255,255,.6)}.cta-perks span{display:flex;align-items:center;gap:.25rem}footer{border-top:1px solid var(--border);padding:2rem 1rem;text-align:center}.footer-inner{max-width:72rem;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:1rem}@media(min-width:640px){.footer-inner{flex-direction:row;justify-content:space-between}}.footer-links{display:flex;gap:1.5rem}.footer-links a{font-size:.875rem;color:var(--muted);text-decoration:none}.footer-links a:hover{color:var(--fg)}.copyright{font-size:.75rem;color:#94a3b8}.preview-card{max-width:28rem;margin:3rem auto 0;border-radius:1rem;border:1px solid rgba(0,0,0,.06);box-shadow:0 20px 60px rgba(22,163,74,.1);overflow:hidden;text-align:left}.preview-header{background:linear-gradient(135deg,#0f2b18,#1a472a,#2d6a4f);padding:1.25rem;color:#fff}.preview-header small{font-size:.625rem;text-transform:uppercase;letter-spacing:.1em;opacity:.7}.preview-header h3{font-size:1.125rem;font-weight:700;margin-top:.25rem}.preview-header .date{text-align:right}.preview-header .date p:first-child{font-size:1.5rem;font-weight:800}.preview-header .date p:last-child{font-size:.75rem;opacity:.8}.preview-header .flex{display:flex;justify-content:space-between;align-items:center}.preview-body{padding:1.25rem;background:#fff}.preview-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1rem}.preview-stat{text-align:center;padding:.75rem;border-radius:.75rem}.preview-stat.green{background:#f0fdf4}.preview-stat.green .num{color:#16a34a}.preview-stat.amber{background:#fffbeb}.preview-stat.amber .num{color:#d97706}.preview-stat.blue{background:#eff6ff}.preview-stat.blue .num{color:#2563eb}.preview-stat .num{font-size:1.25rem;font-weight:800}.preview-stat .label{font-size:.625rem;font-weight:600}
+        </style></head><body>
+        <header><div class="header-inner"><a href="/" class="logo">&#9917; Boleiros<span>.app</span></a><div class="nav-links"><a href="#features" class="btn btn-ghost">Funcionalidades</a><a href="#" class="btn btn-ghost">Entrar</a><a href="#" class="btn btn-primary">Criar conta</a></div></div></header>
+        <section class="hero"><div class="hero-badge">&#9889; A plataforma #1 para peladas no Brasil</div><h1>Organize suas peladas <span>como um profissional</span></h1><p>Confirma&ccedil;&otilde;es, sorteio inteligente, placar ao vivo, rankings, financeiro e muito mais. Tudo em um s&oacute; lugar.</p><div class="hero-buttons"><a href="#" class="btn btn-primary btn-lg">Come&ccedil;ar gr&aacute;tis &rarr;</a><a href="#features" class="btn btn-outline btn-lg">Ver funcionalidades</a></div><p class="hero-sub">Gr&aacute;tis para sempre no plano b&aacute;sico. Sem cart&atilde;o de cr&eacute;dito.</p>
+        <div class="preview-card"><div class="preview-header"><div class="flex"><div><small>Pr&oacute;xima pelada</small><h3>Quinta dos Cria</h3></div><div class="date"><p>QUI</p><p>20:00</p></div></div></div><div class="preview-body"><div class="preview-stats"><div class="preview-stat green"><div class="num">14</div><div class="label">Confirmados</div></div><div class="preview-stat amber"><div class="num">3</div><div class="label">Talvez</div></div><div class="preview-stat blue"><div class="num">2</div><div class="label">Espera</div></div></div></div></div></section>
+        <section class="stats"><div class="stats-grid"><div><div class="stat-value">10k+</div><div class="stat-label">Jogadores</div></div><div><div class="stat-value">2k+</div><div class="stat-label">Grupos ativos</div></div><div><div class="stat-value">50k+</div><div class="stat-label">Partidas</div></div><div><div class="stat-value">4.9&#9733;</div><div class="stat-label">Avalia&ccedil;&atilde;o</div></div></div></section>
+        <section id="features" class="features"><h2>Tudo que sua pelada precisa</h2><div class="features-grid"><div class="feature-card"><div class="feature-icon">&#128101;</div><h3>Confirma&ccedil;&otilde;es Inteligentes</h3><p>Presen&ccedil;a, fila de espera autom&aacute;tica, separa&ccedil;&atilde;o goleiro/linha e check-in por QR Code.</p></div><div class="feature-card"><div class="feature-icon">&#9889;</div><h3>Sorteio Equilibrado</h3><p>Algoritmo que equilibra times por habilidade, posi&ccedil;&atilde;o e hist&oacute;rico. Com explica&ccedil;&atilde;o visual.</p></div><div class="feature-card"><div class="feature-icon">&#9201;</div><h3>Placar ao Vivo</h3><p>Cron&ocirc;metro, eventos em tempo real, timeline da partida e controle de rota&ccedil;&atilde;o.</p></div><div class="feature-card"><div class="feature-icon">&#127942;</div><h3>Rankings &amp; Estat&iacute;sticas</h3><p>Rankings semanais, mensais e anuais. Overall calculado e evolu&ccedil;&atilde;o dos jogadores.</p></div><div class="feature-card"><div class="feature-icon">&#128176;</div><h3>Controle Financeiro</h3><p>Mensalidades, di&aacute;rias, carteira digital, controle de caixa e relat&oacute;rios.</p></div><div class="feature-card"><div class="feature-icon">&#127775;</div><h3>Gamifica&ccedil;&atilde;o &amp; Social</h3><p>Conquistas, trof&eacute;us, badges, mural do grupo e compartilhamento de destaques.</p></div></div></section>
+        <section class="how"><h2>Como funciona</h2><div class="how-grid"><div><div class="how-step">01</div><h3>Crie seu grupo</h3><p>Cadastre-se e crie seu grupo de pelada em segundos.</p></div><div><div class="how-step">02</div><h3>Convide a galera</h3><p>Compartilhe o link e todos entram f&aacute;cil.</p></div><div><div class="how-step">03</div><h3>Organize o jogo</h3><p>Crie a partida, confirme e sorteie os times.</p></div><div><div class="how-step">04</div><h3>Jogue e acompanhe</h3><p>Placar ao vivo, rankings e estat&iacute;sticas.</p></div></div></section>
+        <section class="cta"><div class="cta-box"><h2>Pronto pra organizar sua pelada?</h2><p>Junte-se a milhares de grupos que j&aacute; organizam suas peladas com o Boleiros.app</p><a href="#" class="btn btn-white btn-lg">Criar meu grupo gr&aacute;tis &rarr;</a><div class="cta-perks"><span>&#10004; Gr&aacute;tis para sempre</span><span>&#128274; Sem cart&atilde;o</span><span>&#128241; PWA instal&aacute;vel</span></div></div></section>
+        <footer><div class="footer-inner"><a href="/" class="logo">&#9917; Boleiros<span>.app</span></a><div class="footer-links"><a href="#">Termos</a><a href="#">Privacidade</a><a href="#">Contato</a></div><div class="copyright">&copy; 2026 Boleiros.app. Todos os direitos reservados.</div></div></footer>
+        <script>document.querySelectorAll('a[href^="#"]').forEach(a=>{a.addEventListener("click",e=>{e.preventDefault();const t=document.querySelector(a.getAttribute("href"));t&&t.scrollIntoView({behavior:"smooth"})})});</script>
+        </body></html>
+        HTMLEOF
+
+        cat > /usr/share/nginx/html/manifest.json << 'MJEOF'
+        {"name":"Boleiros.app","short_name":"Boleiros","start_url":"/","display":"standalone","background_color":"#ffffff","theme_color":"#1a472a","icons":[]}
+        MJEOF
+
+        exec nginx -g 'daemon off;'
+    networks:
+      - boleiros-network
+
+volumes:
+  boleiros-db-data:
+  boleiros-redis-data:
+  boleiros-api-data:
+  boleiros-web-html:
+
+networks:
+  boleiros-network:
+    driver: bridge
