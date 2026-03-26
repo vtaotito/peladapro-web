@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   Play,
@@ -9,14 +10,14 @@ import {
   Square,
   Goal as GoalIcon,
   Footprints,
-  CircleDot,
-  CircleOff,
   CornerDownRight,
   ShieldAlert,
   AlertTriangle,
-  Ban,
-  Shield,
-  Star,
+  Sparkles,
+  Zap,
+  Flame,
+  RefreshCw,
+  ShieldCheck,
   ChevronDown,
   ChevronUp,
   Trophy,
@@ -33,32 +34,28 @@ import { getInitials, cn } from "@/lib/utils";
 type StatKey =
   | "goals"
   | "assists"
-  | "correctPasses"
-  | "wrongPasses"
-  | "shotsOnTarget"
-  | "shotsOff"
-  | "corners"
-  | "foulsCommitted"
-  | "foulsSuffered"
-  | "yellowCards"
-  | "redCards"
-  | "saves";
+  | "isolou"
+  | "pacocada"
+  | "inacreditavel"
+  | "faltaCometida"
+  | "faltaSofrida"
+  | "undaia"
+  | "escanteio"
+  | "defesaBonita";
 
 type PlayerStats = Record<StatKey, number>;
 
 const defaultStats = (): PlayerStats => ({
   goals: 0,
   assists: 0,
-  correctPasses: 0,
-  wrongPasses: 0,
-  shotsOnTarget: 0,
-  shotsOff: 0,
-  corners: 0,
-  foulsCommitted: 0,
-  foulsSuffered: 0,
-  yellowCards: 0,
-  redCards: 0,
-  saves: 0,
+  isolou: 0,
+  pacocada: 0,
+  inacreditavel: 0,
+  faltaCometida: 0,
+  faltaSofrida: 0,
+  undaia: 0,
+  escanteio: 0,
+  defesaBonita: 0,
 });
 
 const statConfig: {
@@ -69,23 +66,35 @@ const statConfig: {
   color: string;
   max?: number;
 }[] = [
-  { key: "goals", label: "Gols", short: "GOL", icon: GoalIcon, color: "text-brand-600" },
-  { key: "assists", label: "Assistências", short: "ASS", icon: Footprints, color: "text-blue-600" },
-  { key: "correctPasses", label: "Passes certos", short: "PC", icon: CircleDot, color: "text-emerald-600" },
-  { key: "wrongPasses", label: "Passes errados", short: "PE", icon: CircleOff, color: "text-red-400" },
-  { key: "shotsOnTarget", label: "Finalizações no gol", short: "FG", icon: CircleDot, color: "text-brand-500" },
-  { key: "shotsOff", label: "Finalizações fora", short: "FF", icon: CircleOff, color: "text-muted" },
-  { key: "corners", label: "Escanteios", short: "ESC", icon: CornerDownRight, color: "text-accent-600" },
-  { key: "foulsCommitted", label: "Faltas cometidas", short: "FC", icon: ShieldAlert, color: "text-red-500" },
-  { key: "foulsSuffered", label: "Faltas sofridas", short: "FS", icon: AlertTriangle, color: "text-accent-500" },
-  { key: "yellowCards", label: "Cartão amarelo", short: "CA", icon: AlertTriangle, color: "text-yellow-500", max: 2 },
-  { key: "redCards", label: "Cartão vermelho", short: "CV", icon: Ban, color: "text-red-600", max: 1 },
-  { key: "saves", label: "Defesas", short: "DEF", icon: Shield, color: "text-purple-600" },
+  { key: "goals", label: "Gol", short: "GOL", icon: GoalIcon, color: "text-brand-600" },
+  { key: "assists", label: "Assistência", short: "ASS", icon: Footprints, color: "text-blue-600" },
+  { key: "isolou", label: "Isolou", short: "ISO", icon: Zap, color: "text-amber-600" },
+  { key: "pacocada", label: "Paçocada", short: "PAÇ", icon: Flame, color: "text-orange-600" },
+  { key: "inacreditavel", label: "Inacreditável", short: "INA", icon: Sparkles, color: "text-violet-600" },
+  { key: "faltaCometida", label: "Falta cometida", short: "FC", icon: ShieldAlert, color: "text-red-500" },
+  { key: "faltaSofrida", label: "Falta sofrida", short: "FS", icon: AlertTriangle, color: "text-amber-700" },
+  {
+    key: "undaia",
+    label: "Undaia (drible tomado)",
+    short: "UDA",
+    icon: RefreshCw,
+    color: "text-slate-600",
+  },
+  { key: "escanteio", label: "Escanteio", short: "ESC", icon: CornerDownRight, color: "text-emerald-600" },
+  { key: "defesaBonita", label: "Defesa bonita", short: "DB", icon: ShieldCheck, color: "text-cyan-600" },
 ];
 
 type MatchTab = "scout" | "summary";
 
 export default function MatchPage() {
+  const params = useParams();
+  const groupId =
+    typeof params.groupId === "string"
+      ? params.groupId
+      : Array.isArray(params.groupId)
+        ? params.groupId[0]
+        : "group-1";
+
   const confirmed = upcomingMatch.confirmed;
   const half = Math.ceil(confirmed.length / 2);
   const teamAPlayers = confirmed.slice(0, half);
@@ -228,7 +237,7 @@ export default function MatchPage() {
               <p className="text-[10px] text-muted">{player.position}</p>
             </div>
             {hasStats && (
-              <div className="flex items-center gap-1.5 text-[10px]">
+              <div className="flex flex-wrap items-center justify-end gap-1.5 text-[10px] max-w-[42%]">
                 {s.goals > 0 && (
                   <span className="flex items-center gap-0.5 text-brand-600 font-bold">
                     <GoalIcon className="h-3 w-3" />{s.goals}
@@ -239,11 +248,15 @@ export default function MatchPage() {
                     <Footprints className="h-3 w-3" />{s.assists}
                   </span>
                 )}
-                {s.yellowCards > 0 && (
-                  <span className="inline-block h-3.5 w-2.5 rounded-sm bg-yellow-400" />
+                {s.inacreditavel > 0 && (
+                  <span className="flex items-center gap-0.5 text-violet-600 font-bold">
+                    <Sparkles className="h-3 w-3" />{s.inacreditavel}
+                  </span>
                 )}
-                {s.redCards > 0 && (
-                  <span className="inline-block h-3.5 w-2.5 rounded-sm bg-red-500" />
+                {s.defesaBonita > 0 && (
+                  <span className="flex items-center gap-0.5 text-cyan-600 font-bold">
+                    <ShieldCheck className="h-3 w-3" />{s.defesaBonita}
+                  </span>
                 )}
               </div>
             )}
@@ -272,7 +285,7 @@ export default function MatchPage() {
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center gap-3">
-        <Link href="/groups/group-1">
+        <Link href={`/groups/${groupId}`}>
           <Button variant="ghost" size="icon" className="h-9 w-9">
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -476,9 +489,9 @@ export default function MatchPage() {
                     icon: Footprints,
                   },
                   {
-                    title: "Paredão",
-                    stat: "saves" as StatKey,
-                    icon: Shield,
+                    title: "Defesa bonita",
+                    stat: "defesaBonita" as StatKey,
+                    icon: ShieldCheck,
                   },
                 ].map(({ title, stat, icon: HIcon }) => {
                   const best = confirmed
