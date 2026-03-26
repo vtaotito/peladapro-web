@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Search,
   Plus,
@@ -18,12 +19,24 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { myGroups } from "@/lib/mock-data";
+import { getHiddenGroupIds } from "@/lib/group-membership-storage";
 
 export default function GroupsPage() {
+  const pathname = usePathname();
   const [search, setSearch] = useState("");
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
 
-  const filteredGroups = myGroups.filter((g) =>
-    g.name.toLowerCase().includes(search.toLowerCase())
+  useEffect(() => {
+    setHiddenIds(getHiddenGroupIds());
+  }, [pathname]);
+
+  const visibleGroups = useMemo(
+    () => myGroups.filter((g) => !hiddenIds.has(g.id)),
+    [hiddenIds],
+  );
+
+  const filteredGroups = visibleGroups.filter((g) =>
+    g.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (

@@ -9,13 +9,29 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import { currentUser } from "@/lib/mock-data";
 
 interface User {
+  id?: string;
   name: string;
   email: string;
   nickname?: string;
   position?: string;
   positions?: string[];
+}
+
+type StoredAccount = { name: string; password: string; id?: string };
+
+function newUserId(email: string): string {
+  if (email === currentUser.email) return currentUser.id;
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  return `user-${Date.now()}`;
+}
+
+function withStableUserId(u: User): User {
+  if (u.id) return u;
+  const id = newUserId(u.email);
+  return { ...u, id };
 }
 
 interface AuthContextType {
@@ -51,24 +67,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) setUser(JSON.parse(stored));
+      if (stored) {
+        const parsed = JSON.parse(stored) as User;
+        const withId = withStableUserId(parsed);
+        if (withId.id !== parsed.id) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(withId));
+        }
+        setUser(withId);
+      }
     } catch {}
     setIsLoading(false);
   }, []);
 
   const register = useCallback(
     async (name: string, email: string, password: string) => {
-      const accounts: Record<string, { name: string; password: string }> =
-        JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || "{}");
+      const accounts: Record<string, StoredAccount> = JSON.parse(
+        localStorage.getItem(ACCOUNTS_KEY) || "{}",
+      );
 
       if (accounts[email]) {
         return { ok: false, error: "E-mail já cadastrado" };
       }
 
-      accounts[email] = { name, password };
+      const id = newUserId(email);
+      accounts[email] = { name, password, id };
       localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
 
-      const u: User = { name, email };
+      const u: User = { id, name, email };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
       setCookie(COOKIE_NAME, "1", 30);
       setUser(u);
@@ -80,15 +105,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string) => {
-      const accounts: Record<string, { name: string; password: string }> =
-        JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || "{}");
+      const accounts: Record<string, StoredAccount> = JSON.parse(
+        localStorage.getItem(ACCOUNTS_KEY) || "{}",
+      );
 
       const acc = accounts[email];
       if (!acc || acc.password !== password) {
         return { ok: false, error: "E-mail ou senha incorretos" };
       }
 
-      const u: User = { name: acc.name, email };
+      const id = acc.id ?? newUserId(email);
+      if (!acc.id) {
+        accounts[email] = { ...acc, id };
+        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+      }
+
+      const u: User = { id, name: acc.name, email };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
       setCookie(COOKIE_NAME, "1", 30);
       setUser(u);

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Trophy,
   Target,
@@ -36,11 +37,23 @@ import {
 import { formatCurrency, formatTime, getInitials } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { ConfirmButtons, PresenceList } from "@/components/presence-list";
+import { getHiddenGroupIds } from "@/lib/group-membership-storage";
 
 export default function DashboardPage() {
+  const pathname = usePathname();
   const { user } = useAuth();
   const displayName = user?.name?.split(" ")[0] || currentUser.nickname;
   const [myStatus, setMyStatus] = useState<MatchStatus>("confirmed");
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setHiddenIds(getHiddenGroupIds());
+  }, [pathname]);
+
+  const visibleMyGroups = useMemo(
+    () => myGroups.filter((g) => !hiddenIds.has(g.id)),
+    [hiddenIds],
+  );
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -193,7 +206,7 @@ export default function DashboardPage() {
           </Link>
         </div>
         <div className="space-y-3">
-          {myGroups.map((group) => (
+          {visibleMyGroups.map((group) => (
             <Link key={group.id} href={`/groups/${group.id}`}>
               <Card className="transition-all active:scale-[0.99] hover:border-brand-200 hover:shadow-md cursor-pointer mb-3">
                 <CardContent className="flex items-center gap-3.5 p-3.5">

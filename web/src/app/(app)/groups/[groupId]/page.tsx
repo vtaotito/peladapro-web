@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import {
   ArrowLeft,
   Users,
@@ -14,7 +14,6 @@ import {
   Shield,
   MapPin,
   Clock,
-  Goal as GoalIcon,
   CalendarCheck,
   Shuffle,
   ClipboardList,
@@ -27,6 +26,7 @@ import {
   DollarSign,
   Footprints,
   X,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,11 +37,18 @@ import {
   groupMembers,
   upcomingMatch,
   recentMatches,
+  currentUser,
   type MatchStatus,
 } from "@/lib/mock-data";
 import { getInitials, formatTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ConfirmButtons, PresenceList } from "@/components/presence-list";
+import { useAuth } from "@/lib/auth";
+import {
+  markGroupLeft,
+  markGroupDeleted,
+  isGroupHiddenFromUser,
+} from "@/lib/group-membership-storage";
 
 const tabs = [
   { id: "info", label: "Info", icon: Info },
@@ -51,31 +58,62 @@ const tabs = [
   { id: "mural", label: "Mural", icon: MessageSquare },
 ];
 
-const roleLabels: Record<string, string> = {
-  admin: "Admin",
-  moderator: "Moderador",
-  member: "Membro",
-};
-
-const roleBadgeVariant: Record<string, "default" | "info" | "secondary"> = {
-  admin: "default",
-  moderator: "info",
-  member: "secondary",
-};
-
 export default function GroupDetailPage() {
   const router = useRouter();
+  const params = useParams();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("info");
   const [myMatchStatus, setMyMatchStatus] = useState<MatchStatus>("confirmed");
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
 
-  const group = myGroups[0];
+  const groupId =
+    typeof params.groupId === "string"
+      ? params.groupId
+      : Array.isArray(params.groupId)
+        ? params.groupId[0]
+        : "";
+
+  const group = useMemo(
+    () => myGroups.find((g) => g.id === groupId),
+    [groupId],
+  );
+
+  const userId = user?.id ?? (user?.email === currentUser.email ? currentUser.id : undefined);
+  const isProprietor = Boolean(group && userId && group.owner.id === userId);
+
+  useEffect(() => {
+    if (!groupId) return;
+    if (isGroupHiddenFromUser(groupId)) {
+      router.replace("/groups");
+    }
+  }, [groupId, router]);
+
+  useEffect(() => {
+    if (!groupId || group) return;
+    router.replace("/groups");
+  }, [groupId, group, router]);
 
   const handleLeaveGroup = () => {
+    if (group) markGroupLeft(group.id);
     setShowLeaveModal(false);
     router.push("/groups");
   };
+
+  const handleDeleteGroup = () => {
+    if (group) markGroupDeleted(group.id);
+    setShowDeleteModal(false);
+    router.push("/groups");
+  };
+
+  if (!group) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted">
+        Carregando…
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -115,12 +153,23 @@ export default function GroupDetailPage() {
             </p>
           </div>
         </div>
-        {group.role !== "admin" && (
+        {isProprietor ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 text-red-500 hover:text-red-600 hover:bg-red-50"
+            onClick={() => setShowDeleteModal(true)}
+            aria-label="Excluir grupo"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        ) : (
           <Button
             variant="ghost"
             size="icon"
             className="h-9 w-9 text-red-500 hover:text-red-600 hover:bg-red-50"
             onClick={() => setShowLeaveModal(true)}
+            aria-label="Sair do grupo"
           >
             <LogOut className="h-4 w-4" />
           </Button>
@@ -211,15 +260,17 @@ export default function GroupDetailPage() {
                     <p className="font-semibold text-sm">{group.owner.name}</p>
                     <p className="text-xs text-muted">@{group.owner.nickname}</p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setShowContactModal(true)}
-                    className="shrink-0"
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                    Contato
-                  </Button>
+                  {!isProprietor && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowContactModal(true)}
+                      className="shrink-0"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      Contato
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -253,7 +304,16 @@ export default function GroupDetailPage() {
               </CardContent>
             </Card>
 
-            {group.role !== "admin" && (
+            {isProprietor ? (
+              <Button
+                variant="outline"
+                className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={() => setShowDeleteModal(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+                Excluir grupo
+              </Button>
+            ) : (
               <Button
                 variant="outline"
                 className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
@@ -299,13 +359,13 @@ export default function GroupDetailPage() {
                 <p className="mb-2 text-xs font-semibold text-muted-dark">Sua presença:</p>
                 <ConfirmButtons currentStatus={myMatchStatus} onConfirm={setMyMatchStatus} />
                 <div className="mt-4 flex gap-2">
-                  <Link href="/groups/group-1/shuffle" className="flex-1">
+                  <Link href={`/groups/${group.id}/shuffle`} className="flex-1">
                     <Button variant="outline" size="sm" className="w-full">
                       <Shuffle className="h-4 w-4" />
                       Sortear times
                     </Button>
                   </Link>
-                  <Link href="/groups/group-1/match" className="flex-1">
+                  <Link href={`/groups/${group.id}/match`} className="flex-1">
                     <Button variant="outline" size="sm" className="w-full">
                       <ClipboardList className="h-4 w-4" />
                       Scout
@@ -497,6 +557,33 @@ export default function GroupDetailPage() {
                 </Button>
                 <Button variant="danger" className="flex-1" onClick={handleLeaveGroup}>
                   Sair
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Group Modal (proprietário) */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-sm animate-fade-in">
+            <CardContent className="p-6 text-center space-y-4">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+                <Trash2 className="h-7 w-7 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-display text-lg font-bold">Excluir grupo?</h3>
+                <p className="mt-1 text-sm text-muted">
+                  Esta ação remove <strong>{group.name}</strong> da sua lista. O histórico e membros serão perdidos neste dispositivo (demonstração). Esta operação não pode ser desfeita.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setShowDeleteModal(false)}>
+                  Cancelar
+                </Button>
+                <Button variant="danger" className="flex-1" onClick={handleDeleteGroup}>
+                  Excluir
                 </Button>
               </div>
             </CardContent>
