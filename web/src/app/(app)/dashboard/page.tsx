@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   Trophy,
@@ -30,17 +31,16 @@ import {
   recentMatches,
   playerStats,
   financialSummary,
+  type MatchStatus,
 } from "@/lib/mock-data";
 import { formatCurrency, formatTime, getInitials } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
+import { ConfirmButtons, PresenceList } from "@/components/presence-list";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const displayName = user?.name?.split(" ")[0] || currentUser.nickname;
-  const confirmProgress =
-    (upcomingMatch.confirmed.length /
-      (upcomingMatch.confirmed.length + upcomingMatch.maybe.length + upcomingMatch.waiting.length)) *
-    100;
+  const [myStatus, setMyStatus] = useState<MatchStatus>("confirmed");
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -159,33 +159,25 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="mb-4 flex -space-x-2">
-            {upcomingMatch.confirmed.slice(0, 8).map((player) => (
-              <Avatar
-                key={player.id}
-                className="h-8 w-8 border-2 border-surface"
-              >
-                <AvatarFallback className="text-[10px]">
-                  {getInitials(player.name)}
-                </AvatarFallback>
-              </Avatar>
-            ))}
-            {upcomingMatch.confirmed.length > 8 && (
-              <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-surface bg-surface-tertiary text-[10px] font-bold text-muted">
-                +{upcomingMatch.confirmed.length - 8}
-              </div>
-            )}
+          <ConfirmButtons currentStatus={myStatus} onConfirm={setMyStatus} />
+
+          <div className="mt-4">
+            <PresenceList
+              confirmed={upcomingMatch.confirmed}
+              maybe={upcomingMatch.maybe}
+              waiting={upcomingMatch.waiting}
+              totalSpots={14}
+              collapsible
+              defaultOpen={false}
+            />
           </div>
 
-          <div className="flex gap-2">
-            <Button className="flex-1" size="sm">
-              <CalendarCheck className="h-4 w-4" />
-              Confirmado
+          <Link href={`/groups/${upcomingMatch.groupId}`} className="block mt-3">
+            <Button variant="outline" size="sm" className="w-full">
+              Ver detalhes da pelada
+              <ChevronRight className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="outline" size="sm">
-              Ver detalhes
-            </Button>
-          </div>
+          </Link>
         </CardContent>
       </Card>
 
@@ -203,7 +195,7 @@ export default function DashboardPage() {
         <div className="space-y-3">
           {myGroups.map((group) => (
             <Link key={group.id} href={`/groups/${group.id}`}>
-              <Card className="transition-all active:scale-[0.99] mb-3">
+              <Card className="transition-all active:scale-[0.99] hover:border-brand-200 hover:shadow-md cursor-pointer mb-3">
                 <CardContent className="flex items-center gap-3.5 p-3.5">
                   <div
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white font-bold text-sm"

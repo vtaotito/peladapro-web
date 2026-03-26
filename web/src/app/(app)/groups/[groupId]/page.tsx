@@ -15,6 +15,7 @@ import {
   Clock,
   ChevronRight,
   Goal as GoalIcon,
+  CalendarCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,9 +26,11 @@ import {
   groupMembers,
   upcomingMatch,
   recentMatches,
+  type MatchStatus,
 } from "@/lib/mock-data";
 import { getInitials, formatTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { ConfirmButtons, PresenceList } from "@/components/presence-list";
 
 const tabs = [
   { id: "mural", label: "Mural", icon: MessageSquare },
@@ -50,6 +53,7 @@ const roleBadgeVariant: Record<string, "default" | "info" | "secondary"> = {
 
 export default function GroupDetailPage() {
   const [activeTab, setActiveTab] = useState("mural");
+  const [myMatchStatus, setMyMatchStatus] = useState<MatchStatus>("confirmed");
 
   const group = myGroups[0];
 
@@ -158,7 +162,8 @@ export default function GroupDetailPage() {
       )}
 
       {activeTab === "jogos" && (
-        <div className="space-y-4">
+        <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0">
+          <div className="space-y-4">
           {/* Next Match */}
           <Card className="overflow-hidden border-none shadow-lg">
             <div className="pitch-gradient px-4 py-3">
@@ -193,7 +198,7 @@ export default function GroupDetailPage() {
                   {upcomingMatch.confirmed.length}/14
                 </span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-brand-100">
+              <div className="mb-4 h-2 overflow-hidden rounded-full bg-brand-100">
                 <div
                   className="h-full rounded-full bg-brand-500"
                   style={{
@@ -201,10 +206,33 @@ export default function GroupDetailPage() {
                   }}
                 />
               </div>
+
+              <p className="mb-2 text-xs font-semibold text-muted-dark">Sua presença:</p>
+              <ConfirmButtons currentStatus={myMatchStatus} onConfirm={setMyMatchStatus} />
             </CardContent>
           </Card>
 
+          {/* Presence List */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <CalendarCheck className="h-4 w-4 text-muted" />
+                Lista de Presença
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PresenceList
+                confirmed={upcomingMatch.confirmed}
+                maybe={upcomingMatch.maybe}
+                waiting={upcomingMatch.waiting}
+                totalSpots={14}
+              />
+            </CardContent>
+          </Card>
+          </div>
+
           {/* Recent Matches */}
+          <div className="space-y-4">
           <h3 className="font-display font-bold">Partidas Anteriores</h3>
           {recentMatches.map((match) => (
             <Card key={match.id} className="border-border/50">
@@ -236,6 +264,7 @@ export default function GroupDetailPage() {
               </CardContent>
             </Card>
           ))}
+          </div>
         </div>
       )}
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   Star,
   Trophy,
@@ -227,20 +228,24 @@ export default function ProfilePage() {
 
       {/* Actions */}
       <div className="flex flex-col gap-2 lg:flex-row">
-        <Button variant="outline" className="w-full lg:w-auto justify-between lg:justify-center lg:gap-2" size="lg">
-          <span className="flex items-center gap-2">
-            <Edit3 className="h-4 w-4" />
-            Editar perfil
-          </span>
-          <ChevronRight className="h-4 w-4 text-muted-light lg:hidden" />
-        </Button>
-        <Button variant="outline" className="w-full lg:w-auto justify-between lg:justify-center lg:gap-2" size="lg">
-          <span className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Configurações
-          </span>
-          <ChevronRight className="h-4 w-4 text-muted-light lg:hidden" />
-        </Button>
+        <Link href="/profile/edit" className="flex-1 lg:flex-none">
+          <Button variant="outline" className="w-full lg:w-auto justify-between lg:justify-center lg:gap-2" size="lg">
+            <span className="flex items-center gap-2">
+              <Edit3 className="h-4 w-4" />
+              Editar perfil
+            </span>
+            <ChevronRight className="h-4 w-4 text-muted-light lg:hidden" />
+          </Button>
+        </Link>
+        <Link href="/profile/settings" className="flex-1 lg:flex-none">
+          <Button variant="outline" className="w-full lg:w-auto justify-between lg:justify-center lg:gap-2" size="lg">
+            <span className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Configurações
+            </span>
+            <ChevronRight className="h-4 w-4 text-muted-light lg:hidden" />
+          </Button>
+        </Link>
       </div>
     </div>
   );

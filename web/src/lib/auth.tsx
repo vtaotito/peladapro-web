@@ -13,6 +13,8 @@ import { useRouter } from "next/navigation";
 interface User {
   name: string;
   email: string;
+  nickname?: string;
+  position?: string;
 }
 
 interface AuthContextType {
@@ -20,6 +22,7 @@ interface AuthContextType {
   isLoading: boolean;
   register: (name: string, email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  updateUser: (data: Partial<User>) => void;
   logout: () => void;
 }
 
@@ -94,6 +97,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [router],
   );
 
+  const updateUser = useCallback((data: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...data };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
     deleteCookie(COOKIE_NAME);
@@ -102,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, register, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, register, login, updateUser, logout }}>
       {children}
     </AuthContext.Provider>
   );
