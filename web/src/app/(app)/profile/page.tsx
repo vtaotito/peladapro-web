@@ -73,7 +73,7 @@ export default function ProfilePage() {
       </Card>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           {
             label: "Partidas",
@@ -117,6 +117,8 @@ export default function ProfilePage() {
           </Card>
         ))}
       </div>
+
+      <div className="lg:grid lg:grid-cols-2 lg:gap-5 space-y-5 lg:space-y-0">
 
       {/* Record */}
       <Card className="border-border/50">
@@ -221,21 +223,23 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
+      </div>{/* End two-column grid */}
+
       {/* Actions */}
-      <div className="space-y-2">
-        <Button variant="outline" className="w-full justify-between" size="lg">
+      <div className="flex flex-col gap-2 lg:flex-row">
+        <Button variant="outline" className="w-full lg:w-auto justify-between lg:justify-center lg:gap-2" size="lg">
           <span className="flex items-center gap-2">
             <Edit3 className="h-4 w-4" />
             Editar perfil
           </span>
-          <ChevronRight className="h-4 w-4 text-muted-light" />
+          <ChevronRight className="h-4 w-4 text-muted-light lg:hidden" />
         </Button>
-        <Button variant="outline" className="w-full justify-between" size="lg">
+        <Button variant="outline" className="w-full lg:w-auto justify-between lg:justify-center lg:gap-2" size="lg">
           <span className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Configurações
           </span>
-          <ChevronRight className="h-4 w-4 text-muted-light" />
+          <ChevronRight className="h-4 w-4 text-muted-light lg:hidden" />
         </Button>
       </div>
     </div>

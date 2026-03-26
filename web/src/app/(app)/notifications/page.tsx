@@ -49,7 +49,7 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      <div className="space-y-2.5">
+      <div className="space-y-2.5 lg:max-w-2xl">
         {notifications.map((notification) => {
           const Icon = typeIcons[notification.type] || Bell;
           const colors = typeColors[notification.type] || {

@@ -45,15 +45,17 @@ export default function DashboardPage() {
   return (
     <div className="space-y-5 animate-fade-in">
       {/* Greeting */}
-      <div>
-        <h1 className="font-display text-2xl font-bold">
-          Salve, {displayName}! 👋
-        </h1>
-        <p className="text-sm text-muted">Pronto pra mais uma pelada?</p>
+      <div className="lg:flex lg:items-end lg:justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold lg:text-3xl">
+            Salve, {displayName}! 👋
+          </h1>
+          <p className="text-sm text-muted">Pronto pra mais uma pelada?</p>
+        </div>
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           {
             label: "Jogos",
@@ -99,6 +101,12 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      {/* Two-column layout on desktop */}
+      <div className="lg:grid lg:grid-cols-5 lg:gap-6 space-y-5 lg:space-y-0">
+
+      {/* Left Column */}
+      <div className="lg:col-span-3 space-y-5">
 
       {/* Next Match */}
       <Card className="overflow-hidden border-none shadow-lg">
@@ -238,6 +246,73 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Recent Matches */}
+      <div>
+        <h2 className="mb-3 font-display text-lg font-bold">
+          Partidas Recentes
+        </h2>
+        <div className="space-y-3">
+          {recentMatches.map((match) => (
+            <Card key={match.id} className="border-border/50">
+              <CardContent className="p-3.5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-muted">
+                    {new Date(match.date).toLocaleDateString("pt-BR", {
+                      day: "2-digit",
+                      month: "short",
+                    })}{" "}
+                    — {match.group}
+                  </span>
+                  <div className="flex items-center gap-1 rounded-md bg-accent-50 px-2 py-0.5">
+                    <Star className="h-3 w-3 fill-accent-400 text-accent-400" />
+                    <span className="text-xs font-bold text-accent-700">
+                      {match.playerRating}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-center gap-4">
+                  <div className="text-center flex-1">
+                    <p className="font-semibold text-sm">{match.teamA.name}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-display text-2xl font-extrabold text-pitch">
+                      {match.teamA.score}
+                    </span>
+                    <span className="text-muted-light font-bold">x</span>
+                    <span className="font-display text-2xl font-extrabold text-pitch">
+                      {match.teamB.score}
+                    </span>
+                  </div>
+                  <div className="text-center flex-1">
+                    <p className="font-semibold text-sm">{match.teamB.name}</p>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-center gap-4 text-xs text-muted">
+                  {match.goals > 0 && (
+                    <span className="flex items-center gap-1">
+                      <GoalIcon className="h-3 w-3" />
+                      {match.goals} {match.goals === 1 ? "gol" : "gols"}
+                    </span>
+                  )}
+                  {match.assists > 0 && (
+                    <span className="flex items-center gap-1">
+                      <Footprints className="h-3 w-3" />
+                      {match.assists}{" "}
+                      {match.assists === 1 ? "assistência" : "assistências"}
+                    </span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      </div>{/* End Left Column */}
+
+      {/* Right Column */}
+      <div className="lg:col-span-2 space-y-5">
+
       {/* Weekly Highlights */}
       <div>
         <h2 className="mb-3 font-display text-lg font-bold">
@@ -337,85 +412,6 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Recent Matches */}
-      <div>
-        <h2 className="mb-3 font-display text-lg font-bold">
-          Partidas Recentes
-        </h2>
-        <div className="space-y-3">
-          {recentMatches.map((match) => (
-            <Card key={match.id} className="border-border/50">
-              <CardContent className="p-3.5">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-muted">
-                    {new Date(match.date).toLocaleDateString("pt-BR", {
-                      day: "2-digit",
-                      month: "short",
-                    })}{" "}
-                    — {match.group}
-                  </span>
-                  <div className="flex items-center gap-1 rounded-md bg-accent-50 px-2 py-0.5">
-                    <Star className="h-3 w-3 fill-accent-400 text-accent-400" />
-                    <span className="text-xs font-bold text-accent-700">
-                      {match.playerRating}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-center gap-4">
-                  <div className="text-center flex-1">
-                    <p className="font-semibold text-sm">{match.teamA.name}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-display text-2xl font-extrabold text-pitch">
-                      {match.teamA.score}
-                    </span>
-                    <span className="text-muted-light font-bold">x</span>
-                    <span className="font-display text-2xl font-extrabold text-pitch">
-                      {match.teamB.score}
-                    </span>
-                  </div>
-                  <div className="text-center flex-1">
-                    <p className="font-semibold text-sm">{match.teamB.name}</p>
-                  </div>
-                </div>
-                <div className="mt-2 flex items-center justify-center gap-4 text-xs text-muted">
-                  {match.goals > 0 && (
-                    <span className="flex items-center gap-1">
-                      <GoalIcon className="h-3 w-3" />
-                      {match.goals} {match.goals === 1 ? "gol" : "gols"}
-                    </span>
-                  )}
-                  {match.assists > 0 && (
-                    <span className="flex items-center gap-1">
-                      <Footprints className="h-3 w-3" />
-                      {match.assists}{" "}
-                      {match.assists === 1 ? "assistência" : "assistências"}
-                    </span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-
-      {/* Presence Streak */}
-      <Card className="border-brand-200 bg-brand-50/50">
-        <CardContent className="flex items-center gap-4 p-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-100">
-            <Flame className="h-6 w-6 text-brand-600" />
-          </div>
-          <div className="flex-1">
-            <p className="font-display text-lg font-bold text-brand-700">
-              {playerStats.streak} jogos seguidos!
-            </p>
-            <p className="text-sm text-brand-600/80">
-              Sequência de presença ativa. Continue assim!
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Overall Evolution */}
       <Card className="border-border/50">
         <CardHeader className="pb-2">
@@ -446,6 +442,27 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      </div>{/* End Right Column */}
+      </div>{/* End Two-column grid */}
+
+      {/* Presence Streak */}
+      <Card className="border-brand-200 bg-brand-50/50">
+        <CardContent className="flex items-center gap-4 p-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-100">
+            <Flame className="h-6 w-6 text-brand-600" />
+          </div>
+          <div className="flex-1">
+            <p className="font-display text-lg font-bold text-brand-700">
+              {playerStats.streak} jogos seguidos!
+            </p>
+            <p className="text-sm text-brand-600/80">
+              Sequência de presença ativa. Continue assim!
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
     </div>
   );
 }

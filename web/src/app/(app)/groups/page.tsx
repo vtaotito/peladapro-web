@@ -45,13 +45,13 @@ export default function GroupsPage() {
       </div>
 
       {/* Group List */}
-      <div className="space-y-3">
+      <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
         {filteredGroups.map((group) => {
           const progress =
             (group.nextMatch.confirmedCount / group.nextMatch.totalSpots) * 100;
           return (
             <Link key={group.id} href={`/groups/${group.id}`}>
-              <Card className="transition-all active:scale-[0.99] mb-3">
+              <Card className="transition-all active:scale-[0.99] mb-3 lg:mb-0 h-full">
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3.5">
                     <div

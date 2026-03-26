@@ -65,7 +65,7 @@ export default function RankingsPage() {
       </div>
 
       {/* Top 3 Podium */}
-      <div className="flex items-end justify-center gap-3 py-4">
+      <div className="flex items-end justify-center gap-3 py-4 lg:gap-6 lg:py-8">
         {[sortedMembers[1], sortedMembers[0], sortedMembers[2]].map(
           (member, idx) => {
             if (!member) return null;
@@ -91,7 +91,7 @@ export default function RankingsPage() {
                 </div>
                 <div
                   className={cn(
-                    "flex w-20 items-start justify-center rounded-t-xl pt-2 text-xl",
+                    "flex w-20 lg:w-28 items-start justify-center rounded-t-xl pt-2 text-xl",
                     heights[idx],
                     bgColors[idx]
                   )}
@@ -105,7 +105,7 @@ export default function RankingsPage() {
       </div>
 
       {/* Full List */}
-      <div className="space-y-1.5">
+      <div className="space-y-1.5 lg:max-w-2xl lg:mx-auto">
         {sortedMembers.map((member, idx) => (
           <Card
             key={member.id}
