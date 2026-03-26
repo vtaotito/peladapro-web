@@ -9,6 +9,9 @@ import {
   ChevronRight,
   Link2,
   CalendarCheck,
+  Globe,
+  Lock,
+  Compass,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,10 +30,20 @@ export default function GroupsPage() {
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold">Grupos</h1>
-        <Button size="sm">
-          <Plus className="h-4 w-4" />
-          Novo grupo
-        </Button>
+        <div className="flex gap-2">
+          <Link href="/groups/discover">
+            <Button size="sm" variant="outline">
+              <Compass className="h-4 w-4" />
+              <span className="hidden sm:inline">Descobrir</span>
+            </Button>
+          </Link>
+          <Link href="/groups/new">
+            <Button size="sm">
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Novo grupo</span>
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Search */}
@@ -61,7 +74,7 @@ export default function GroupsPage() {
                       {group.name.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <p className="truncate font-display font-bold">
                           {group.name}
                         </p>
@@ -70,12 +83,23 @@ export default function GroupsPage() {
                             Admin
                           </Badge>
                         )}
+                        <Badge
+                          variant={group.visibility === "public" ? "info" : "secondary"}
+                          className="text-[10px] px-1.5 py-0"
+                        >
+                          {group.visibility === "public" ? (
+                            <><Globe className="h-2.5 w-2.5 mr-0.5" />Público</>
+                          ) : (
+                            <><Lock className="h-2.5 w-2.5 mr-0.5" />Privado</>
+                          )}
+                        </Badge>
                       </div>
                       <div className="mt-1 flex items-center gap-3 text-xs text-muted">
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
-                          {group.memberCount} membros
+                          {group.memberCount}/{group.maxMembers}
                         </span>
+                        <span>{group.dayOfWeek} • {group.time}h</span>
                       </div>
 
                       {/* Next Match */}
@@ -119,11 +143,31 @@ export default function GroupsPage() {
         })}
       </div>
 
+      {/* Discover Public Groups CTA */}
+      <Link href="/groups/discover">
+        <Card className="border-dashed border-2 border-brand-200 bg-brand-50/30 transition-all hover:border-brand-400 hover:shadow-md cursor-pointer">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-100">
+              <Compass className="h-6 w-6 text-brand-600" />
+            </div>
+            <div className="flex-1">
+              <p className="font-display font-bold text-sm">
+                Encontrar grupos públicos
+              </p>
+              <p className="text-xs text-muted">
+                Descubra peladas na sua região e peça para participar.
+              </p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-brand-400" />
+          </CardContent>
+        </Card>
+      </Link>
+
       {/* Join by Invite */}
-      <Card className="border-dashed border-2 border-brand-200 bg-brand-50/30">
+      <Card className="border-dashed border-2 border-gray-200 bg-gray-50/30">
         <CardContent className="flex items-center gap-4 p-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-100">
-            <Link2 className="h-6 w-6 text-brand-600" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100">
+            <Link2 className="h-6 w-6 text-gray-600" />
           </div>
           <div className="flex-1">
             <p className="font-display font-bold text-sm">

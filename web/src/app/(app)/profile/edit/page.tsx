@@ -11,11 +11,11 @@ import {
   Mail,
   AtSign,
   MapPin,
+  Check,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth";
 import { currentUser } from "@/lib/mock-data";
@@ -35,7 +35,7 @@ export default function EditProfilePage() {
   const [name, setName] = useState("");
   const [nickname, setNickname] = useState("");
   const [email, setEmail] = useState("");
-  const [position, setPosition] = useState("MEI");
+  const [selectedPositions, setSelectedPositions] = useState<string[]>(["MEI"]);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -43,12 +43,34 @@ export default function EditProfilePage() {
       setName(user.name || "");
       setNickname(user.nickname || currentUser.nickname);
       setEmail(user.email || "");
-      setPosition(user.position || currentUser.position);
+      setSelectedPositions(
+        user.positions?.length
+          ? user.positions
+          : user.position
+            ? [user.position]
+            : currentUser.positions || [currentUser.position]
+      );
     }
   }, [user]);
 
+  const togglePosition = (pos: string) => {
+    setSelectedPositions((prev) => {
+      if (prev.includes(pos)) {
+        if (prev.length === 1) return prev;
+        return prev.filter((p) => p !== pos);
+      }
+      return [...prev, pos];
+    });
+  };
+
   const handleSave = () => {
-    updateUser({ name, nickname, email, position });
+    updateUser({
+      name,
+      nickname,
+      email,
+      position: selectedPositions[0],
+      positions: selectedPositions,
+    });
     setSaved(true);
     setTimeout(() => {
       router.push("/profile");
@@ -128,24 +150,41 @@ export default function EditProfilePage() {
           <div>
             <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-dark">
               <MapPin className="h-3.5 w-3.5" />
-              Posição principal
+              Posições (selecione uma ou mais)
             </label>
             <div className="flex flex-wrap gap-2">
-              {positions.map((pos) => (
-                <button
-                  key={pos.value}
-                  onClick={() => setPosition(pos.value)}
-                  className={cn(
-                    "rounded-lg border px-3 py-2 text-sm font-medium transition-all",
-                    position === pos.value
-                      ? "border-brand-500 bg-brand-50 text-brand-700"
-                      : "border-border bg-surface text-muted-dark hover:border-brand-300"
-                  )}
-                >
-                  {pos.label}
-                </button>
-              ))}
+              {positions.map((pos) => {
+                const isSelected = selectedPositions.includes(pos.value);
+                const isPrimary = selectedPositions[0] === pos.value;
+                return (
+                  <button
+                    key={pos.value}
+                    onClick={() => togglePosition(pos.value)}
+                    className={cn(
+                      "relative rounded-lg border px-3 py-2 text-sm font-medium transition-all",
+                      isSelected
+                        ? isPrimary
+                          ? "border-brand-500 bg-brand-500 text-white"
+                          : "border-brand-500 bg-brand-50 text-brand-700"
+                        : "border-border bg-surface text-muted-dark hover:border-brand-300"
+                    )}
+                  >
+                    {isSelected && (
+                      <Check className="inline-block h-3.5 w-3.5 mr-1" />
+                    )}
+                    {pos.label}
+                    {isPrimary && (
+                      <span className="ml-1 text-[10px] opacity-80">
+                        (principal)
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
+            <p className="mt-1.5 text-[11px] text-muted">
+              A primeira posição selecionada é sua posição principal.
+            </p>
           </div>
         </CardContent>
       </Card>
