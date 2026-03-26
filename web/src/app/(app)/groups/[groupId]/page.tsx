@@ -495,7 +495,7 @@ export default function GroupDetailPage() {
                 <Button variant="outline" className="flex-1" onClick={() => setShowLeaveModal(false)}>
                   Cancelar
                 </Button>
-                <Button variant="destructive" className="flex-1" onClick={handleLeaveGroup}>
+                <Button variant="danger" className="flex-1" onClick={handleLeaveGroup}>
                   Sair
                 </Button>
               </div>

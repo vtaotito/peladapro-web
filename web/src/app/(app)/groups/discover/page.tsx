@@ -168,7 +168,7 @@ export default function DiscoverGroupsPage() {
                         <Users className="h-3 w-3" />
                         {group.memberCount}/{group.maxMembers}
                       </span>
-                      <Badge variant={spotsLeft > 5 ? "success" : spotsLeft > 0 ? "warning" : "destructive"} className="text-[10px] px-1.5 py-0">
+                      <Badge variant={spotsLeft > 5 ? "success" : spotsLeft > 0 ? "warning" : "danger"} className="text-[10px] px-1.5 py-0">
                         {spotsLeft > 0 ? `${spotsLeft} vagas` : "Lotado"}
                       </Badge>
                     </div>
