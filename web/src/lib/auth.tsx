@@ -10,6 +10,14 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { currentUser } from "@/lib/mock-data";
+import {
+  ACCOUNTS_KEY,
+  readAccounts,
+  writeAccounts,
+  normalizeEmail,
+  type StoredAccount,
+} from "@/lib/account-storage";
+import { PLATFORM_ADMIN_EMAIL, seedPlatformAdminIfNeeded } from "@/lib/platform-admin";
 
 interface User {
   id?: string;
@@ -20,10 +28,8 @@ interface User {
   positions?: string[];
 }
 
-type StoredAccount = { name: string; password: string; id?: string };
-
 function newUserId(email: string): string {
-  if (email === currentUser.email) return currentUser.id;
+  if (email === normalizeEmail(currentUser.email)) return currentUser.id;
   if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
   return `user-${Date.now()}`;
 }
@@ -46,13 +52,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const STORAGE_KEY = "peladapro_user";
-const ACCOUNTS_KEY = "peladapro_accounts";
 const COOKIE_NAME = "peladapro_session";
 
 function setCookie(name: string, value: string, days: number) {
   const d = new Date();
   d.setTime(d.getTime() + days * 86400000);
-  document.cookie = `${name}=${value};expires=${d.toUTCString()};path=/`;
+  document.cookie = `${name}=${value};expires=${d.toUTCString()};path=/;SameSite=Lax`;
 }
 
 function deleteCookie(name: string) {
@@ -65,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    seedPlatformAdminIfNeeded();
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -81,19 +87,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(
     async (name: string, email: string, password: string) => {
-      const accounts: Record<string, StoredAccount> = JSON.parse(
-        localStorage.getItem(ACCOUNTS_KEY) || "{}",
-      );
+      const e = normalizeEmail(email);
+      if (e === PLATFORM_ADMIN_EMAIL) {
+        return { ok: false, error: "Use outro e-mail ou o painel administrativo para esta conta" };
+      }
 
-      if (accounts[email]) {
+      const accounts = readAccounts();
+
+      if (accounts[e]) {
         return { ok: false, error: "E-mail já cadastrado" };
       }
 
-      const id = newUserId(email);
-      accounts[email] = { name, password, id };
-      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+      const id = newUserId(e);
+      const row: StoredAccount = {
+        name,
+        password,
+        id,
+        platformRole: "USER",
+        disabled: false,
+        createdAt: new Date().toISOString(),
+      };
+      accounts[e] = row;
+      writeAccounts(accounts);
 
-      const u: User = { id, name, email };
+      const u: User = { id, name, email: e };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
       setCookie(COOKIE_NAME, "1", 30);
       setUser(u);
@@ -105,22 +122,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string) => {
-      const accounts: Record<string, StoredAccount> = JSON.parse(
-        localStorage.getItem(ACCOUNTS_KEY) || "{}",
-      );
+      const e = normalizeEmail(email);
+      const accounts = readAccounts();
 
-      const acc = accounts[email];
+      const acc = accounts[e];
       if (!acc || acc.password !== password) {
         return { ok: false, error: "E-mail ou senha incorretos" };
       }
 
-      const id = acc.id ?? newUserId(email);
-      if (!acc.id) {
-        accounts[email] = { ...acc, id };
-        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+      if (acc.disabled) {
+        return { ok: false, error: "Conta desativada. Entre em contato com o suporte." };
       }
 
-      const u: User = { id, name: acc.name, email };
+      if (acc.platformRole === "PLATFORM_ADMIN") {
+        return {
+          ok: false,
+          error: "Use o login do painel em admin.peladapro.cloud ou /admin/login",
+        };
+      }
+
+      let id = acc.id ?? newUserId(e);
+      if (!acc.id) {
+        accounts[e] = { ...acc, id };
+        writeAccounts(accounts);
+      }
+
+      const u: User = { id, name: acc.name, email: e };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
       setCookie(COOKIE_NAME, "1", 30);
       setUser(u);
@@ -158,3 +185,6 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
+
+/** @deprecated use account-storage */
+export { ACCOUNTS_KEY };
