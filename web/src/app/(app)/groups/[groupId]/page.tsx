@@ -16,6 +16,8 @@ import {
   ChevronRight,
   Goal as GoalIcon,
   CalendarCheck,
+  Shuffle,
+  ClipboardList,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -209,6 +211,21 @@ export default function GroupDetailPage() {
 
               <p className="mb-2 text-xs font-semibold text-muted-dark">Sua presença:</p>
               <ConfirmButtons currentStatus={myMatchStatus} onConfirm={setMyMatchStatus} />
+
+              <div className="mt-4 flex gap-2">
+                <Link href="/groups/group-1/shuffle" className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full">
+                    <Shuffle className="h-4 w-4" />
+                    Sortear times
+                  </Button>
+                </Link>
+                <Link href="/groups/group-1/match" className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full">
+                    <ClipboardList className="h-4 w-4" />
+                    Scout
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
 
