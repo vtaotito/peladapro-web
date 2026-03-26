@@ -32,8 +32,11 @@ import {
   financialSummary,
 } from "@/lib/mock-data";
 import { formatCurrency, formatTime, getInitials } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const displayName = user?.name?.split(" ")[0] || currentUser.nickname;
   const confirmProgress =
     (upcomingMatch.confirmed.length /
       (upcomingMatch.confirmed.length + upcomingMatch.maybe.length + upcomingMatch.waiting.length)) *
@@ -44,7 +47,7 @@ export default function DashboardPage() {
       {/* Greeting */}
       <div>
         <h1 className="font-display text-2xl font-bold">
-          Salve, {currentUser.nickname}! 👋
+          Salve, {displayName}! 👋
         </h1>
         <p className="text-sm text-muted">Pronto pra mais uma pelada?</p>
       </div>

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "@/styles/globals.css";
+import { AuthProvider } from "@/lib/auth";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -43,7 +44,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" className={`${inter.variable} ${plusJakarta.variable}`}>
-      <body className="min-h-dvh antialiased">{children}</body>
+      <body className="min-h-dvh antialiased">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

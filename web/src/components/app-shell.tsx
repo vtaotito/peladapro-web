@@ -11,8 +11,10 @@ import {
   Trophy,
   BellRing,
   UserCircle,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 const navItems = [
   { href: "/dashboard", label: "Início", icon: Home },
@@ -24,6 +26,7 @@ const navItems = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface-secondary">
@@ -39,10 +42,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </span>
           </Link>
 
-          <button className="relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-surface-tertiary">
-            <Bell className="h-5 w-5 text-muted" />
-            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-danger" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button className="relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-surface-tertiary">
+              <Bell className="h-5 w-5 text-muted" />
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-danger" />
+            </button>
+            <button
+              onClick={logout}
+              className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-surface-tertiary"
+              title="Sair"
+            >
+              <LogOut className="h-4.5 w-4.5 text-muted" />
+            </button>
+          </div>
         </div>
       </header>
 
