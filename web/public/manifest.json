@@ -1,6 +1,6 @@
 {
-  "name": "Boleiros.app",
-  "short_name": "Boleiros",
+  "name": "PeladaPro",
+  "short_name": "PeladaPro",
   "description": "Organize suas peladas como um profissional",
   "start_url": "/dashboard",
   "display": "standalone",

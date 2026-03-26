@@ -196,7 +196,7 @@ export const publicGroups: Group[] = [
   },
   {
     id: "pub-4",
-    name: "Boleiros de Pinheiros",
+    name: "Pelada de Pinheiros",
     description: "Pelada semanal em Pinheiros. Ambiente amigável, nível intermediário.",
     memberCount: 15,
     maxMembers: 25,

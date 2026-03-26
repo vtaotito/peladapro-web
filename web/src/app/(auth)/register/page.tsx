@@ -46,7 +46,7 @@ export default function RegisterPage() {
     <Card className="animate-scale-in border-border/50 shadow-xl">
       <CardHeader className="text-center">
         <CardTitle className="font-display text-2xl">Crie sua conta</CardTitle>
-        <CardDescription>Junte-se a milhares de boleiros</CardDescription>
+        <CardDescription>Junte-se a milhares de jogadores no PeladaPro</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">

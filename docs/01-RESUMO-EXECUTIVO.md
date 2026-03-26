@@ -1,8 +1,8 @@
-# Boleiros.app — Resumo Executivo
+# PeladaPro — Resumo Executivo
 
 ## Visão Geral
 
-**Boleiros.app** é uma plataforma completa para organização de peladas (futebol amador), focada na experiência mobile-first. O sistema resolve os problemas do dia a dia de quem organiza e participa de jogos informais: confirmação de presença, sorteio equilibrado de times, placar ao vivo, estatísticas, rankings e controle financeiro do grupo.
+**PeladaPro** é uma plataforma completa para organização de peladas (futebol amador), focada na experiência mobile-first. O sistema resolve os problemas do dia a dia de quem organiza e participa de jogos informais: confirmação de presença, sorteio equilibrado de times, placar ao vivo, estatísticas, rankings e controle financeiro do grupo.
 
 ## Problema
 

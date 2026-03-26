@@ -16,14 +16,15 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Boleiros.app - Organize suas peladas",
+  title: "PeladaPro - Organize suas peladas",
   description:
     "A plataforma definitiva para organizar peladas de futebol. Confirmações, sorteio de times, placar ao vivo, rankings e muito mais.",
   keywords: [
     "pelada",
     "futebol",
     "organizar pelada",
-    "boleiros",
+    "PeladaPro",
+    "pelada pro",
     "society",
     "sorteio de times",
   ],

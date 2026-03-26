@@ -1,4 +1,4 @@
-# Boleiros.app — Arquitetura do Sistema
+# PeladaPro — Arquitetura do Sistema
 
 ## 1. Visão Geral da Arquitetura
 
@@ -12,7 +12,7 @@
 │  │ Principal   │    │ (boleiros-network)            │    │
 │  │ :80/:443    │    │                              │    │
 │  │             │───▶│  ┌────────────────────┐      │    │
-│  └─────────────┘    │  │ Nginx Boleiros     │      │    │
+│  └─────────────┘    │  │ Nginx (stack app)  │      │    │
 │                     │  │ :8080              │      │    │
 │                     │  └──────┬───────┬─────┘      │    │
 │                     │         │       │             │    │
@@ -243,21 +243,21 @@ docker compose down -v
 
 ### Configuração do Nginx Principal (na VPS)
 
-Adicionar ao nginx principal (`/etc/nginx/sites-available/boleiros.app`):
+Adicionar ao nginx principal (`/etc/nginx/sites-available/peladapro.cloud`):
 
 ```nginx
 server {
     listen 80;
-    server_name boleiros.app www.boleiros.app;
+    server_name peladapro.cloud www.peladapro.cloud;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name boleiros.app www.boleiros.app;
+    server_name peladapro.cloud www.peladapro.cloud;
 
-    ssl_certificate     /etc/letsencrypt/live/boleiros.app/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/boleiros.app/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/peladapro.cloud/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/peladapro.cloud/privkey.pem;
 
     location / {
         proxy_pass http://127.0.0.1:8080;
@@ -275,7 +275,7 @@ server {
 ### SSL com Certbot
 
 ```bash
-sudo certbot --nginx -d boleiros.app -d www.boleiros.app
+sudo certbot --nginx -d peladapro.cloud -d www.peladapro.cloud
 ```
 
 ## 8. Monitoramento

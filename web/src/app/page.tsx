@@ -79,7 +79,7 @@ const steps = [
   {
     number: "01",
     title: "Crie seu grupo",
-    description: "Monte seu grupo de pelada e convide os boleiros.",
+    description: "Monte seu grupo de pelada e convide o time no PeladaPro.",
   },
   {
     number: "02",
@@ -526,8 +526,8 @@ export default function LandingPage() {
             Pronto para revolucionar sua pelada?
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-lg text-white/80">
-            Junte-se a milhares de boleiros que já organizam suas peladas de
-            forma profissional.
+            Junte-se a milhares de jogadores que já organizam suas peladas no
+            PeladaPro de forma profissional.
           </p>
           <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link href="/register">
@@ -570,8 +570,8 @@ export default function LandingPage() {
           </div>
           <div className="mt-8 border-t border-border pt-8 text-center">
             <p className="text-sm text-muted">
-              &copy; {new Date().getFullYear()} Boleiros.app — Feito com ⚽ para
-              boleiros
+              &copy; {new Date().getFullYear()} PeladaPro — Feito com ⚽ para quem
+              joga
             </p>
           </div>
         </div>

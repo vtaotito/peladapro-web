@@ -39,7 +39,7 @@ export default function AuthLayout({
         <div className="w-full max-w-sm">{children}</div>
 
         <p className="mt-8 text-center text-xs text-muted">
-          &copy; {new Date().getFullYear()} Boleiros.app — Todos os direitos
+          &copy; {new Date().getFullYear()} PeladaPro — Todos os direitos
           reservados
         </p>
       </div>
