@@ -240,7 +240,7 @@ export default function GroupDetailPage() {
       )}
 
       {activeTab === "membros" && (
-        <div className="space-y-2">
+        <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
           {groupMembers.map((member) => (
             <Card key={member.id} className="border-border/50">
               <CardContent className="flex items-center gap-3 p-3">
@@ -332,7 +332,7 @@ export default function GroupDetailPage() {
           </div>
 
           {/* Full Ranking List */}
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 lg:max-w-2xl lg:mx-auto">
             {groupMembers
               .sort((a, b) => b.overall - a.overall)
               .map((member, idx) => (
