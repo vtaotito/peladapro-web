@@ -33,6 +33,13 @@ import {
   Pencil,
   UserCog,
   CalendarPlus,
+  Send,
+  Pin,
+  MoreVertical,
+  Heart,
+  ThumbsUp,
+  Laugh,
+  Flame as FlameIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +67,15 @@ import { getMatchConfirmation, setMatchConfirmation, getMatchResults } from "@/l
 import { getOrCreateInvite, buildInviteUrl } from "@/lib/invite-storage";
 import { getGroupMembers, initGroupOwnerAsMember } from "@/lib/member-storage";
 import { getGroupGames } from "@/lib/game-storage";
+import {
+  getGroupPosts,
+  addPost,
+  removePost,
+  togglePin,
+  toggleReaction,
+  timeAgo,
+  type MuralPost,
+} from "@/lib/mural-storage";
 
 const tabs = [
   { id: "info", label: "Info", icon: Info },
@@ -80,6 +96,10 @@ export default function GroupDetailPage() {
   const [showContactModal, setShowContactModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [muralPosts, setMuralPosts] = useState<MuralPost[]>([]);
+  const [newPostText, setNewPostText] = useState("");
+  const [postMenuOpen, setPostMenuOpen] = useState<string | null>(null);
+  const [muralToast, setMuralToast] = useState<string | null>(null);
 
   const groupId =
     typeof params.groupId === "string"
@@ -116,6 +136,10 @@ export default function GroupDetailPage() {
     const saved = getMatchConfirmation(matchId, userId);
     if (saved) setMyMatchStatus(saved);
   }, [groupId, userId]);
+
+  useEffect(() => {
+    if (groupId) setMuralPosts(getGroupPosts(groupId));
+  }, [groupId]);
 
   const handleConfirmPresence = (status: MatchStatus) => {
     setMyMatchStatus(status);
@@ -789,41 +813,324 @@ export default function GroupDetailPage() {
       {/* Tab: Mural */}
       {activeTab === "mural" && (
         <div className="space-y-4">
-          <Card className="border-accent-200 bg-accent-50/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Badge variant="warning" className="text-[10px]">Fixado</Badge>
-                <span className="text-xs text-muted">Admin • 2h atrás</span>
-              </div>
-              <p className="text-sm">
-                Fala, galera! Pelada de sexta confirmada. Já temos 14 confirmados! Quem não confirmou ainda, confirma aí. Pagamento no local: R$ 25,00. Bora! ⚽
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Avatar className="h-7 w-7"><AvatarFallback className="text-[10px]">LK</AvatarFallback></Avatar>
-                <div>
-                  <span className="text-xs font-semibold">Lukinha</span>
-                  <span className="text-xs text-muted"> • 5h atrás</span>
+          {/* Compose */}
+          <Card className="border-brand-200/50 shadow-sm">
+            <CardContent className="p-3">
+              <div className="flex gap-3">
+                <Avatar className="h-9 w-9 shrink-0 mt-0.5">
+                  <AvatarFallback className="text-[10px] font-semibold bg-brand-100 text-brand-700">
+                    {getInitials(user?.name ?? "U")}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <textarea
+                    value={newPostText}
+                    onChange={(e) => setNewPostText(e.target.value)}
+                    placeholder="Escreva algo para o grupo..."
+                    maxLength={500}
+                    rows={2}
+                    className="w-full rounded-xl border-0 bg-surface-tertiary px-3.5 py-2.5 text-sm ring-0 placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+                  />
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-[10px] text-muted">{newPostText.length}/500</p>
+                    <Button
+                      size="sm"
+                      disabled={!newPostText.trim()}
+                      className="h-8 shadow-sm"
+                      onClick={() => {
+                        if (!newPostText.trim() || !userId) return;
+                        addPost({
+                          id: `post-${Date.now()}`,
+                          groupId,
+                          authorId: userId,
+                          authorName: user?.name ?? "Jogador",
+                          authorNickname: user?.nickname ?? user?.name?.split(" ")[0] ?? "Eu",
+                          content: newPostText.trim(),
+                          pinned: false,
+                          reactions: {},
+                          createdAt: new Date().toISOString(),
+                        });
+                        setNewPostText("");
+                        setMuralPosts(getGroupPosts(groupId));
+                      }}
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      Publicar
+                    </Button>
+                  </div>
                 </div>
               </div>
-              <p className="text-sm">Quem ficou devendo da semana passada? Lembrem de acertar com o Vitinho.</p>
             </CardContent>
           </Card>
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Avatar className="h-7 w-7"><AvatarFallback className="text-[10px]">GB</AvatarFallback></Avatar>
-                <div>
-                  <span className="text-xs font-semibold">Gabigol</span>
-                  <span className="text-xs text-muted"> • 1 dia atrás</span>
+
+          {/* Posts */}
+          {muralPosts.length === 0 && !isMockGroup ? (
+            <Card className="border-dashed">
+              <CardContent className="py-12 text-center">
+                <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-surface-tertiary">
+                  <MessageSquare className="h-8 w-8 text-muted-light" />
                 </div>
-              </div>
-              <p className="text-sm">Hat-trick na última pelada! Quem vai parar o artilheiro? 😎🔥</p>
-            </CardContent>
-          </Card>
+                <p className="font-display font-bold">Mural vazio</p>
+                <p className="text-sm text-muted mt-1 max-w-[240px] mx-auto">
+                  Seja o primeiro a escrever algo para o grupo!
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* User posts from storage */}
+              {muralPosts.map((post) => {
+                const isAuthor = post.authorId === userId;
+                const isGroupOwner = isProprietor;
+                const reactionEmojis = ["👍", "😂", "🔥", "❤️", "⚽"];
+                return (
+                  <Card
+                    key={post.id}
+                    className={cn(
+                      "transition-all overflow-hidden",
+                      post.pinned
+                        ? "border-accent-200 bg-gradient-to-br from-accent-50/40 to-transparent"
+                        : "border-border/50",
+                    )}
+                  >
+                    {post.pinned && (
+                      <div className="flex items-center gap-1.5 bg-accent-100/60 px-4 py-1.5">
+                        <Pin className="h-3 w-3 text-accent-600" />
+                        <span className="text-[10px] font-semibold text-accent-700">Fixado</span>
+                      </div>
+                    )}
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-9 w-9 shrink-0">
+                          <AvatarFallback className="text-[10px] font-semibold">
+                            {getInitials(post.authorName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">{post.authorNickname}</span>
+                            {post.authorId === group?.owner.id && (
+                              <Badge className="text-[8px] px-1 py-0 bg-accent-100 text-accent-700 border-accent-200">Admin</Badge>
+                            )}
+                            <span className="text-[11px] text-muted ml-auto shrink-0">{timeAgo(post.createdAt)}</span>
+                            {(isAuthor || isGroupOwner) && (
+                              <div className="relative">
+                                <button
+                                  onClick={() => setPostMenuOpen(postMenuOpen === post.id ? null : post.id)}
+                                  className="h-6 w-6 rounded-md flex items-center justify-center text-muted hover:text-muted-dark hover:bg-surface-tertiary transition-colors"
+                                >
+                                  <MoreVertical className="h-3.5 w-3.5" />
+                                </button>
+                                {postMenuOpen === post.id && (
+                                  <div className="absolute right-0 top-7 z-10 w-36 rounded-xl border border-border bg-surface shadow-lg py-1 animate-fade-in">
+                                    {isGroupOwner && (
+                                      <button
+                                        onClick={() => {
+                                          togglePin(post.id);
+                                          setMuralPosts(getGroupPosts(groupId));
+                                          setPostMenuOpen(null);
+                                        }}
+                                        className="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-surface-tertiary transition-colors"
+                                      >
+                                        <Pin className="h-3.5 w-3.5" />
+                                        {post.pinned ? "Desafixar" : "Fixar post"}
+                                      </button>
+                                    )}
+                                    {(isAuthor || isGroupOwner) && (
+                                      <button
+                                        onClick={() => {
+                                          removePost(post.id);
+                                          setMuralPosts(getGroupPosts(groupId));
+                                          setPostMenuOpen(null);
+                                          setMuralToast("Post removido");
+                                          setTimeout(() => setMuralToast(null), 2500);
+                                        }}
+                                        className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                        Excluir
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-sm mt-1.5 whitespace-pre-wrap break-words">{post.content}</p>
+
+                          {/* Reactions */}
+                          <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+                            {Object.entries(post.reactions ?? {}).map(([emoji, users]) => (
+                              <button
+                                key={emoji}
+                                onClick={() => {
+                                  if (!userId) return;
+                                  toggleReaction(post.id, emoji, userId);
+                                  setMuralPosts(getGroupPosts(groupId));
+                                }}
+                                className={cn(
+                                  "flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-all",
+                                  users.includes(userId ?? "")
+                                    ? "border-brand-300 bg-brand-50 text-brand-700"
+                                    : "border-border bg-surface-secondary text-muted-dark hover:border-brand-200",
+                                )}
+                              >
+                                <span>{emoji}</span>
+                                <span className="font-semibold">{users.length}</span>
+                              </button>
+                            ))}
+                            <div className="flex items-center gap-0.5 ml-1">
+                              {reactionEmojis
+                                .filter((e) => !post.reactions?.[e])
+                                .slice(0, 3)
+                                .map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => {
+                                      if (!userId) return;
+                                      toggleReaction(post.id, emoji, userId);
+                                      setMuralPosts(getGroupPosts(groupId));
+                                    }}
+                                    className="h-7 w-7 rounded-full flex items-center justify-center text-sm hover:bg-surface-tertiary transition-colors opacity-40 hover:opacity-100"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+
+              {/* Mock posts for demo groups (after real posts) */}
+              {isMockGroup && (
+                <>
+                  <Card className="border-accent-200 bg-gradient-to-br from-accent-50/40 to-transparent overflow-hidden">
+                    <div className="flex items-center gap-1.5 bg-accent-100/60 px-4 py-1.5">
+                      <Pin className="h-3 w-3 text-accent-600" />
+                      <span className="text-[10px] font-semibold text-accent-700">Fixado</span>
+                    </div>
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-9 w-9 shrink-0">
+                          <AvatarFallback className="text-[10px] font-semibold bg-brand-100 text-brand-700">VA</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">Vitinho</span>
+                            <Badge className="text-[8px] px-1 py-0 bg-accent-100 text-accent-700 border-accent-200">Admin</Badge>
+                            <span className="text-[11px] text-muted ml-auto">2h</span>
+                          </div>
+                          <p className="text-sm mt-1.5">
+                            Fala, galera! Pelada de sexta confirmada. Já temos 14 confirmados! Quem não confirmou ainda, confirma aí. Pagamento no local: R$ 25,00. Bora! ⚽
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-3">
+                            <span className="flex items-center gap-1 rounded-full border border-brand-300 bg-brand-50 px-2 py-0.5 text-xs text-brand-700">
+                              <span>👍</span><span className="font-semibold">8</span>
+                            </span>
+                            <span className="flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-xs text-muted-dark">
+                              <span>⚽</span><span className="font-semibold">5</span>
+                            </span>
+                            <span className="flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-xs text-muted-dark">
+                              <span>🔥</span><span className="font-semibold">3</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-border/50">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-9 w-9 shrink-0">
+                          <AvatarFallback className="text-[10px] font-semibold">LK</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">Lukinha</span>
+                            <span className="text-[11px] text-muted ml-auto">5h</span>
+                          </div>
+                          <p className="text-sm mt-1.5">Quem ficou devendo da semana passada? Lembrem de acertar com o Vitinho. 💰</p>
+                          <div className="flex items-center gap-1.5 mt-3">
+                            <span className="flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-xs text-muted-dark">
+                              <span>😂</span><span className="font-semibold">6</span>
+                            </span>
+                            <span className="flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-xs text-muted-dark">
+                              <span>👍</span><span className="font-semibold">2</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-border/50">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-9 w-9 shrink-0">
+                          <AvatarFallback className="text-[10px] font-semibold">GB</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">Gabigol</span>
+                            <span className="text-[11px] text-muted ml-auto">1d</span>
+                          </div>
+                          <p className="text-sm mt-1.5">Hat-trick na última pelada! Quem vai parar o artilheiro? 😎🔥</p>
+                          <div className="flex items-center gap-1.5 mt-3">
+                            <span className="flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-xs text-muted-dark">
+                              <span>🔥</span><span className="font-semibold">12</span>
+                            </span>
+                            <span className="flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-xs text-muted-dark">
+                              <span>⚽</span><span className="font-semibold">7</span>
+                            </span>
+                            <span className="flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-xs text-muted-dark">
+                              <span>❤️</span><span className="font-semibold">4</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-border/50">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-9 w-9 shrink-0">
+                          <AvatarFallback className="text-[10px] font-semibold bg-blue-100 text-blue-700">RM</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">Rapha</span>
+                            <span className="text-[11px] text-muted ml-auto">2d</span>
+                          </div>
+                          <p className="text-sm mt-1.5">Alguém leva os coletes? Os da semana passada tavam rasgados kk</p>
+                          <div className="flex items-center gap-1.5 mt-3">
+                            <span className="flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-xs text-muted-dark">
+                              <span>😂</span><span className="font-semibold">9</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Mural Toast */}
+      {muralToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
+          <div className="flex items-center gap-2 rounded-xl bg-pitch px-4 py-2.5 text-sm font-medium text-white shadow-lg">
+            <Check className="h-4 w-4" />
+            {muralToast}
+          </div>
         </div>
       )}
 
