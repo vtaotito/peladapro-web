@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { User, Mail, Lock, Eye, EyeOff, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,18 @@ import {
 import { useAuth } from "@/lib/auth";
 
 export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+function RegisterForm() {
+  const searchParams = useSearchParams();
+  const inviteCode = searchParams.get("invite");
+  const redirectTo = inviteCode ? `/invite/${inviteCode}` : undefined;
+
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [name, setName] = useState("");
@@ -35,7 +48,7 @@ export default function RegisterPage() {
     if (!acceptedTerms) return setError("Aceite os termos para continuar");
 
     setLoading(true);
-    const result = await register(name.trim(), email.trim().toLowerCase(), password);
+    const result = await register(name.trim(), email.trim().toLowerCase(), password, redirectTo);
     if (!result.ok) {
       setError(result.error || "Erro ao criar conta");
       setLoading(false);
@@ -176,7 +189,7 @@ export default function RegisterPage() {
       <CardFooter className="justify-center">
         <p className="text-sm text-muted">
           Já tem uma conta?{" "}
-          <Link href="/login" className="font-semibold text-brand-600 hover:text-brand-700">
+          <Link href={inviteCode ? `/login?invite=${inviteCode}` : "/login"} className="font-semibold text-brand-600 hover:text-brand-700">
             Entrar
           </Link>
         </p>

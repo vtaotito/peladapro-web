@@ -27,6 +27,9 @@ import {
   Footprints,
   X,
   Trash2,
+  Share2,
+  Link2,
+  Check,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +54,7 @@ import {
 } from "@/lib/group-membership-storage";
 import { findUserGroup, removeUserGroup } from "@/lib/group-storage";
 import { getMatchConfirmation, setMatchConfirmation, getMatchResults } from "@/lib/match-storage";
+import { getOrCreateInvite, buildInviteUrl } from "@/lib/invite-storage";
 
 const tabs = [
   { id: "info", label: "Info", icon: Info },
@@ -69,6 +73,8 @@ export default function GroupDetailPage() {
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const groupId =
     typeof params.groupId === "string"
@@ -129,6 +135,34 @@ export default function GroupDetailPage() {
     router.push("/groups");
   };
 
+  const handleCopyInviteLink = () => {
+    if (!group) return;
+    const invite = getOrCreateInvite(group.id);
+    const url = buildInviteUrl(invite.code);
+    navigator.clipboard.writeText(url).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2500);
+    });
+  };
+
+  const handleShareInvite = async () => {
+    if (!group) return;
+    const invite = getOrCreateInvite(group.id);
+    const url = buildInviteUrl(invite.code);
+    const shareData = {
+      title: `Convite: ${group.name}`,
+      text: `Entra no ${group.name} no PeladaPro! ${group.dayOfWeek} às ${group.time}h — ${group.format}`,
+      url,
+    };
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch { /* user cancelled or not supported */ }
+    }
+    setShowShareModal(true);
+  };
+
   if (!group) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted">
@@ -175,27 +209,38 @@ export default function GroupDetailPage() {
             </p>
           </div>
         </div>
-        {isProprietor ? (
+        <div className="flex items-center gap-1 shrink-0">
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 text-red-500 hover:text-red-600 hover:bg-red-50"
-            onClick={() => setShowDeleteModal(true)}
-            aria-label="Excluir grupo"
+            className="h-9 w-9 text-brand-600 hover:text-brand-700 hover:bg-brand-50"
+            onClick={handleShareInvite}
+            aria-label="Convidar"
           >
-            <Trash2 className="h-4 w-4" />
+            <Share2 className="h-4 w-4" />
           </Button>
-        ) : (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 text-red-500 hover:text-red-600 hover:bg-red-50"
-            onClick={() => setShowLeaveModal(true)}
-            aria-label="Sair do grupo"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-        )}
+          {isProprietor ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-red-500 hover:text-red-600 hover:bg-red-50"
+              onClick={() => setShowDeleteModal(true)}
+              aria-label="Excluir grupo"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-red-500 hover:text-red-600 hover:bg-red-50"
+              onClick={() => setShowLeaveModal(true)}
+              aria-label="Sair do grupo"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
@@ -736,6 +781,64 @@ export default function GroupDetailPage() {
                     <span className="ml-auto text-xs text-blue-500">{group.owner.phone}</span>
                   </a>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {showShareModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-sm animate-fade-in">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-display text-lg font-bold">Convidar para o grupo</h3>
+                <button onClick={() => { setShowShareModal(false); setLinkCopied(false); }} className="text-muted hover:text-muted-dark">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <p className="text-sm text-muted">
+                Compartilhe o link abaixo para convidar jogadores para <strong>{group.name}</strong>.
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 truncate rounded-lg border border-border bg-surface-secondary px-3 py-2.5 text-sm font-mono">
+                  {buildInviteUrl(getOrCreateInvite(group.id).code)}
+                </div>
+                <Button
+                  size="icon"
+                  variant={linkCopied ? "default" : "outline"}
+                  className={linkCopied ? "bg-brand-600 hover:bg-brand-700" : ""}
+                  onClick={handleCopyInviteLink}
+                >
+                  {linkCopied ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
+                </Button>
+              </div>
+              {linkCopied && (
+                <p className="text-xs text-brand-600 font-medium text-center animate-fade-in">
+                  Link copiado!
+                </p>
+              )}
+              <div className="flex gap-2">
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`Entra no ${group.name} no PeladaPro! ${group.dayOfWeek} às ${group.time}h — ${group.format}\n\n${buildInviteUrl(getOrCreateInvite(group.id).code)}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1"
+                >
+                  <Button variant="outline" className="w-full border-green-200 text-green-700 hover:bg-green-50" size="sm">
+                    <MessageCircle className="h-4 w-4" />
+                    WhatsApp
+                  </Button>
+                </a>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  size="sm"
+                  onClick={handleCopyInviteLink}
+                >
+                  <Link2 className="h-4 w-4" />
+                  Copiar link
+                </Button>
               </div>
             </CardContent>
           </Card>

@@ -44,8 +44,8 @@ function withStableUserId(u: User): User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  register: (name: string, email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  register: (name: string, email: string, password: string, redirectTo?: string) => Promise<{ ok: boolean; error?: string }>;
+  login: (email: string, password: string, redirectTo?: string) => Promise<{ ok: boolean; error?: string }>;
   updateUser: (data: Partial<User>) => void;
   logout: () => void;
 }
@@ -114,8 +114,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(
-    async (name: string, email: string, password: string) => {
+    async (name: string, email: string, password: string, redirectTo?: string) => {
       const e = normalizeEmail(email);
+      const dest = redirectTo || "/dashboard";
 
       if (isApiEnabled()) {
         try {
@@ -128,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
           persistUser(u);
           setUser(u);
-          router.push("/dashboard");
+          router.push(dest);
           return { ok: true };
         } catch (err) {
           const msg = err instanceof ApiError ? err.message : "Erro ao criar conta";
@@ -160,15 +161,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u: User = { id, name, email: e };
       persistUser(u);
       setUser(u);
-      router.push("/dashboard");
+      router.push(dest);
       return { ok: true };
     },
     [router],
   );
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, redirectTo?: string) => {
       const e = normalizeEmail(email);
+      const dest = redirectTo || "/dashboard";
 
       if (isApiEnabled()) {
         try {
@@ -181,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
           persistUser(u);
           setUser(u);
-          router.push("/dashboard");
+          router.push(dest);
           return { ok: true };
         } catch (err) {
           const msg = err instanceof ApiError ? err.message : "Credenciais inválidas";
@@ -215,7 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u: User = { id, name: acc.name, email: e };
       persistUser(u);
       setUser(u);
-      router.push("/dashboard");
+      router.push(dest);
       return { ok: true };
     },
     [router],

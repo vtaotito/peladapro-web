@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,18 @@ import {
 import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const inviteCode = searchParams.get("invite");
+  const redirectTo = inviteCode ? `/invite/${inviteCode}` : undefined;
+
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,7 +44,7 @@ export default function LoginPage() {
     if (!password) return setError("Preencha sua senha");
 
     setLoading(true);
-    const result = await login(email.trim().toLowerCase(), password);
+    const result = await login(email.trim().toLowerCase(), password, redirectTo);
     if (!result.ok) {
       setError(result.error || "Erro ao entrar");
       setLoading(false);
@@ -131,7 +144,7 @@ export default function LoginPage() {
       <CardFooter className="justify-center">
         <p className="text-sm text-muted">
           Não tem uma conta?{" "}
-          <Link href="/register" className="font-semibold text-brand-600 hover:text-brand-700">
+          <Link href={inviteCode ? `/register?invite=${inviteCode}` : "/register"} className="font-semibold text-brand-600 hover:text-brand-700">
             Cadastre-se
           </Link>
         </p>
