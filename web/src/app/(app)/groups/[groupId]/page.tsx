@@ -58,6 +58,8 @@ import {
 import { findUserGroup, removeUserGroup } from "@/lib/group-storage";
 import { getMatchConfirmation, setMatchConfirmation, getMatchResults } from "@/lib/match-storage";
 import { getOrCreateInvite, buildInviteUrl } from "@/lib/invite-storage";
+import { getGroupMembers, initGroupOwnerAsMember } from "@/lib/member-storage";
+import { getGroupGames } from "@/lib/game-storage";
 
 const tabs = [
   { id: "info", label: "Info", icon: Info },
@@ -375,31 +377,51 @@ export default function GroupDetailPage() {
             </Card>
 
             {isProprietor && (
-              <Card>
-                <CardHeader className="pb-2">
+              <Card className="border-accent-200/50 bg-gradient-to-br from-accent-50/30 to-transparent">
+                <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Crown className="h-4 w-4 text-accent-500" />
+                    <div className="h-7 w-7 rounded-lg bg-accent-100 flex items-center justify-center">
+                      <Crown className="h-3.5 w-3.5 text-accent-600" />
+                    </div>
                     Gestão do grupo
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <Link href={`/groups/${groupId}/edit`}>
-                    <Button variant="outline" className="w-full justify-start" size="sm">
-                      <Pencil className="h-4 w-4" />
-                      Editar informações
-                    </Button>
+                    <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-surface p-3 transition-all hover:border-brand-300 hover:shadow-sm group cursor-pointer">
+                      <div className="h-9 w-9 rounded-lg bg-brand-100 flex items-center justify-center shrink-0 group-hover:bg-brand-200 transition-colors">
+                        <Pencil className="h-4 w-4 text-brand-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold">Editar informações</p>
+                        <p className="text-[11px] text-muted">Nome, local, horário, formato</p>
+                      </div>
+                      <ArrowLeft className="h-4 w-4 text-muted rotate-180 shrink-0" />
+                    </div>
                   </Link>
                   <Link href={`/groups/${groupId}/members`}>
-                    <Button variant="outline" className="w-full justify-start" size="sm">
-                      <UserCog className="h-4 w-4" />
-                      Gerenciar membros
-                    </Button>
+                    <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-surface p-3 transition-all hover:border-blue-300 hover:shadow-sm group cursor-pointer">
+                      <div className="h-9 w-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0 group-hover:bg-blue-200 transition-colors">
+                        <UserCog className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold">Gerenciar membros</p>
+                        <p className="text-[11px] text-muted">Adicionar, remover jogadores</p>
+                      </div>
+                      <ArrowLeft className="h-4 w-4 text-muted rotate-180 shrink-0" />
+                    </div>
                   </Link>
                   <Link href={`/groups/${groupId}/matches`}>
-                    <Button variant="outline" className="w-full justify-start" size="sm">
-                      <CalendarPlus className="h-4 w-4" />
-                      Gerenciar jogos
-                    </Button>
+                    <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-surface p-3 transition-all hover:border-green-300 hover:shadow-sm group cursor-pointer">
+                      <div className="h-9 w-9 rounded-lg bg-green-100 flex items-center justify-center shrink-0 group-hover:bg-green-200 transition-colors">
+                        <CalendarPlus className="h-4 w-4 text-green-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold">Gerenciar jogos</p>
+                        <p className="text-[11px] text-muted">Agendar, cancelar partidas</p>
+                      </div>
+                      <ArrowLeft className="h-4 w-4 text-muted rotate-180 shrink-0" />
+                    </div>
                   </Link>
                 </CardContent>
               </Card>
@@ -516,42 +538,103 @@ export default function GroupDetailPage() {
           ) : (
             <div className="lg:col-span-2 space-y-4">
               {(() => {
+                const scheduledGames = getGroupGames(groupId).filter((g) => g.status === "scheduled");
                 const savedResults = getMatchResults(groupId);
-                if (savedResults.length === 0) {
+                const hasContent = scheduledGames.length > 0 || savedResults.length > 0;
+
+                if (!hasContent) {
                   return (
                     <Card className="border-border/50">
                       <CardContent className="py-12 text-center">
                         <Calendar className="h-10 w-10 text-muted-light mx-auto mb-3" />
                         <p className="font-display font-bold">Nenhuma partida ainda</p>
-                        <p className="text-sm text-muted mt-1">Crie a primeira partida deste grupo usando o Scout.</p>
-                        <Link href={`/groups/${group.id}/match`} className="mt-4 inline-block">
-                          <Button size="sm">
-                            <ClipboardList className="h-4 w-4" />
-                            Iniciar Scout
-                          </Button>
-                        </Link>
+                        <p className="text-sm text-muted mt-1">
+                          {isProprietor ? "Agende jogos ou inicie o Scout." : "Aguardando o organizador agendar jogos."}
+                        </p>
+                        <div className="flex items-center justify-center gap-2 mt-4">
+                          {isProprietor && (
+                            <Link href={`/groups/${group.id}/matches`}>
+                              <Button size="sm" variant="outline">
+                                <CalendarPlus className="h-4 w-4" />
+                                Agendar jogo
+                              </Button>
+                            </Link>
+                          )}
+                          <Link href={`/groups/${group.id}/match`}>
+                            <Button size="sm">
+                              <ClipboardList className="h-4 w-4" />
+                              Iniciar Scout
+                            </Button>
+                          </Link>
+                        </div>
                       </CardContent>
                     </Card>
                   );
                 }
-                return savedResults.map((result) => (
-                  <Card key={result.matchId} className="border-border/50">
-                    <CardContent className="p-3.5">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-muted">
-                          {new Date(result.endedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
-                        </span>
+
+                return (
+                  <>
+                    {scheduledGames.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-display font-bold text-sm">Próximos jogos</h3>
+                          {isProprietor && (
+                            <Link href={`/groups/${groupId}/matches`}>
+                              <Button variant="ghost" size="sm" className="text-xs h-7">
+                                Ver todos
+                              </Button>
+                            </Link>
+                          )}
+                        </div>
+                        {scheduledGames.slice(0, 2).map((game) => (
+                          <Card key={game.id} className="border-brand-200/50 bg-brand-50/20">
+                            <CardContent className="p-3.5 flex items-center gap-3">
+                              <div className="rounded-xl bg-brand-100 border border-brand-200 p-2 text-center w-12 shrink-0">
+                                <p className="text-sm font-bold text-brand-700 leading-tight">
+                                  {(() => { try { return new Date(game.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit" }); } catch { return "—"; } })()}
+                                </p>
+                                <p className="text-[9px] font-medium text-brand-500 uppercase">
+                                  {(() => { try { return new Date(game.date + "T00:00:00").toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""); } catch { return ""; } })()}
+                                </p>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold">{game.time}h · {game.format}</p>
+                                <p className="text-xs text-muted truncate flex items-center gap-1 mt-0.5">
+                                  <MapPin className="h-3 w-3 shrink-0" />{game.location}
+                                </p>
+                              </div>
+                              <Badge variant="success" className="text-[10px] shrink-0">Agendado</Badge>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
-                      <div className="flex items-center justify-center gap-4">
-                        <span className="flex-1 text-right text-sm font-semibold">Time A</span>
-                        <span className="font-display text-2xl font-extrabold text-pitch">{result.teamAScore}</span>
-                        <span className="font-bold text-muted-light">x</span>
-                        <span className="font-display text-2xl font-extrabold text-pitch">{result.teamBScore}</span>
-                        <span className="flex-1 text-sm font-semibold">Time B</span>
+                    )}
+
+                    {savedResults.length > 0 && (
+                      <div className="space-y-3">
+                        <h3 className="font-display font-bold text-sm">Resultados</h3>
+                        {savedResults.map((result) => (
+                          <Card key={result.matchId} className="border-border/50">
+                            <CardContent className="p-3.5">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs text-muted">
+                                  {new Date(result.endedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-center gap-4">
+                                <span className="flex-1 text-right text-sm font-semibold">Time A</span>
+                                <span className="font-display text-2xl font-extrabold text-pitch">{result.teamAScore}</span>
+                                <span className="font-bold text-muted-light">x</span>
+                                <span className="font-display text-2xl font-extrabold text-pitch">{result.teamBScore}</span>
+                                <span className="flex-1 text-sm font-semibold">Time B</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
-                    </CardContent>
-                  </Card>
-                ));
+                    )}
+                  </>
+                );
               })()}
             </div>
           )}
@@ -591,28 +674,54 @@ export default function GroupDetailPage() {
           ))}
         </div>
         ) : (
-        <div className="space-y-2">
-          <Card className="border-border/50">
-            <CardContent className="flex items-center gap-3 p-3">
-              <Avatar className="h-10 w-10">
-                <AvatarFallback className="text-xs">{getInitials(group.owner.name)}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-semibold">{group.owner.nickname}</p>
-                  <Crown className="h-3.5 w-3.5 text-accent-500" />
-                </div>
-                <p className="text-xs text-muted">Criador do grupo</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-dashed border-border">
-            <CardContent className="py-8 text-center">
-              <Users className="h-8 w-8 text-muted-light mx-auto mb-2" />
-              <p className="text-sm text-muted">Convide jogadores para o grupo!</p>
-            </CardContent>
-          </Card>
-        </div>
+        (() => {
+          initGroupOwnerAsMember(groupId, group.owner);
+          const realMembers = getGroupMembers(groupId);
+          return (
+            <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
+              {realMembers.map((member) => (
+                <Card key={member.id} className="border-border/50">
+                  <CardContent className="flex items-center gap-3 p-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className="text-xs">{getInitials(member.name)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-sm font-semibold">{member.nickname}</p>
+                        {member.role === "admin" && <Crown className="h-3.5 w-3.5 text-accent-500" />}
+                        {member.role === "moderator" && <Shield className="h-3.5 w-3.5 text-blue-500" />}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-muted">
+                        <Badge variant="secondary" className="text-[9px] px-1.5 py-0">{member.position}</Badge>
+                        <span>{member.name}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 rounded-md bg-accent-50 px-2 py-0.5">
+                      <Star className="h-3 w-3 fill-accent-400 text-accent-400" />
+                      <span className="text-xs font-bold text-accent-700">{member.overall.toFixed(1)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {realMembers.length <= 1 && (
+                <Card className="border-dashed border-border lg:col-span-2">
+                  <CardContent className="py-8 text-center">
+                    <Users className="h-8 w-8 text-muted-light mx-auto mb-2" />
+                    <p className="text-sm text-muted">Convide jogadores para o grupo!</p>
+                    {isProprietor && (
+                      <Link href={`/groups/${groupId}/members`}>
+                        <Button size="sm" variant="outline" className="mt-3">
+                          <UserCog className="h-3.5 w-3.5" />
+                          Gerenciar membros
+                        </Button>
+                      </Link>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          );
+        })()
         )
       )}
 

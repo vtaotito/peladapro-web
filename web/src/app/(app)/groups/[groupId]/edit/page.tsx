@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import {
@@ -17,6 +17,8 @@ import {
   Palette,
   Save,
   Check,
+  RotateCcw,
+  AlertCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -74,7 +76,7 @@ export default function EditGroupPage() {
   const [saved, setSaved] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
+  const loadFromGroup = () => {
     if (!group) return;
     setName(group.name);
     setDescription(group.description);
@@ -89,23 +91,47 @@ export default function EditGroupPage() {
     setVisibility(group.visibility);
     setColor(group.color);
     setLoaded(true);
-  }, [group]);
+  };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadFromGroup(); }, [group]);
 
   const isOwner =
-    group &&
-    user &&
-    (group.owner.id === user.id || group.owner.name === user.name);
+    group && user && (group.owner.id === user.id || group.owner.name === user.name);
 
   useEffect(() => {
-    if (loaded && !isOwner) {
-      router.replace(`/groups/${groupId}`);
-    }
+    if (loaded && !isOwner) router.replace(`/groups/${groupId}`);
   }, [loaded, isOwner, groupId, router]);
+
+  const hasChanges = useMemo(() => {
+    if (!group || !loaded) return false;
+    return (
+      name !== group.name ||
+      description !== group.description ||
+      address !== group.address ||
+      city !== group.city ||
+      neighborhood !== group.neighborhood ||
+      dayOfWeek !== group.dayOfWeek ||
+      time !== group.time ||
+      format !== group.format ||
+      maxMembers !== String(group.maxMembers) ||
+      pricePerMatch !== String(group.pricePerMatch) ||
+      visibility !== group.visibility ||
+      color !== group.color
+    );
+  }, [group, loaded, name, description, address, city, neighborhood, dayOfWeek, time, format, maxMembers, pricePerMatch, visibility, color]);
 
   if (!group || !loaded) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted">
-        Carregando…
+      <div className="space-y-5 animate-fade-in lg:max-w-2xl lg:mx-auto">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-surface-tertiary animate-pulse" />
+          <div className="h-6 w-40 rounded bg-surface-tertiary animate-pulse" />
+        </div>
+        <div className="h-24 rounded-2xl bg-surface-tertiary animate-pulse" />
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-40 rounded-2xl bg-surface-tertiary animate-pulse" />
+        ))}
       </div>
     );
   }
@@ -145,45 +171,55 @@ export default function EditGroupPage() {
     });
 
     setSaved(true);
-    setTimeout(() => {
-      router.push(`/groups/${groupId}`);
-    }, 1000);
+    setTimeout(() => router.push(`/groups/${groupId}`), 1200);
   };
 
-  return (
-    <div className="space-y-5 animate-fade-in lg:max-w-2xl lg:mx-auto">
-      <div className="flex items-center gap-3">
-        <Link href={`/groups/${groupId}`}>
-          <Button variant="ghost" size="icon" className="h-9 w-9">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <h1 className="font-display text-xl font-bold">Editar Grupo</h1>
-      </div>
+  const handleDiscard = () => loadFromGroup();
 
-      {/* Preview */}
-      <Card className="overflow-hidden border-none shadow-lg">
-        <div className="px-4 py-6 flex items-center gap-4" style={{ backgroundColor: color }}>
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/20 text-white font-bold text-2xl">
-            {name.charAt(0) || "?"}
-          </div>
-          <div className="text-white">
-            <p className="font-display text-lg font-bold">{name || "Nome do grupo"}</p>
-            <div className="flex items-center gap-2 text-sm opacity-80">
-              <Badge className="bg-white/20 text-white border-white/20 text-[10px]">
-                {visibility === "public" ? <><Globe className="h-2.5 w-2.5 mr-0.5" />Público</> : <><Lock className="h-2.5 w-2.5 mr-0.5" />Privado</>}
+  return (
+    <div className="space-y-5 animate-fade-in lg:max-w-2xl lg:mx-auto pb-24">
+      {/* Header with group color */}
+      <div className="relative overflow-hidden rounded-2xl" style={{ backgroundColor: color }}>
+        <div className="absolute inset-0 bg-gradient-to-br from-black/10 to-transparent" />
+        <div className="relative px-4 py-5">
+          <div className="flex items-center gap-3 mb-4">
+            <Link href={`/groups/${groupId}`}>
+              <Button variant="ghost" size="icon" className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/10">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <h1 className="font-display text-xl font-bold text-white">Editar Grupo</h1>
+            {hasChanges && !saved && (
+              <Badge className="bg-white/20 text-white border-white/20 text-[10px] ml-auto animate-fade-in">
+                <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                Alterações pendentes
               </Badge>
-              <span>{format}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/20 text-white font-bold text-2xl backdrop-blur-sm">
+              {name.charAt(0) || "?"}
+            </div>
+            <div className="text-white min-w-0 flex-1">
+              <p className="font-display text-lg font-bold truncate">{name || "Nome do grupo"}</p>
+              <div className="flex items-center gap-2 text-sm opacity-80">
+                <Badge className="bg-white/20 text-white border-white/20 text-[10px]">
+                  {visibility === "public" ? <><Globe className="h-2.5 w-2.5 mr-0.5" />Público</> : <><Lock className="h-2.5 w-2.5 mr-0.5" />Privado</>}
+                </Badge>
+                <span>{format}</span>
+                <span>·</span>
+                <span>{dayOfWeek.slice(0, 3)} {time}h</span>
+              </div>
             </div>
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Basic Info */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <FileText className="h-4 w-4 text-muted" />
+            <FileText className="h-4 w-4 text-brand-500" />
             Informações básicas
           </CardTitle>
         </CardHeader>
@@ -193,6 +229,7 @@ export default function EditGroupPage() {
               Nome do grupo *
             </label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Pelada do Parque" maxLength={40} />
+            <p className="mt-1 text-[11px] text-muted text-right">{name.length}/40</p>
           </div>
           <div>
             <label className="mb-1.5 text-xs font-medium text-muted-dark block">
@@ -204,7 +241,7 @@ export default function EditGroupPage() {
               placeholder="Descreva seu grupo, regras, nível..."
               maxLength={200}
               rows={3}
-              className="flex w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm ring-offset-background placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+              className="flex w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm ring-offset-background placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 resize-none"
             />
             <p className="mt-1 text-[11px] text-muted text-right">{description.length}/200</p>
           </div>
@@ -215,43 +252,37 @@ export default function EditGroupPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            {visibility === "public" ? <Globe className="h-4 w-4 text-brand-500" /> : <Lock className="h-4 w-4 text-muted" />}
+            {visibility === "public" ? <Globe className="h-4 w-4 text-brand-500" /> : <Lock className="h-4 w-4 text-brand-500" />}
             Visibilidade
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <button
-            onClick={() => setVisibility("public")}
-            className={cn(
-              "w-full flex items-start gap-3 rounded-xl border p-4 text-left transition-all",
-              visibility === "public" ? "border-brand-500 bg-brand-50 ring-1 ring-brand-500" : "border-border hover:border-brand-300"
-            )}
-          >
-            <Globe className={cn("h-5 w-5 mt-0.5 shrink-0", visibility === "public" ? "text-brand-600" : "text-muted")} />
-            <div>
-              <p className="font-semibold text-sm">Público</p>
-              <p className="text-xs text-muted mt-0.5">
-                Qualquer pessoa pode encontrar e solicitar entrada.
-              </p>
-            </div>
-            {visibility === "public" && <Check className="h-5 w-5 text-brand-600 shrink-0 ml-auto" />}
-          </button>
-          <button
-            onClick={() => setVisibility("private")}
-            className={cn(
-              "w-full flex items-start gap-3 rounded-xl border p-4 text-left transition-all",
-              visibility === "private" ? "border-brand-500 bg-brand-50 ring-1 ring-brand-500" : "border-border hover:border-brand-300"
-            )}
-          >
-            <Lock className={cn("h-5 w-5 mt-0.5 shrink-0", visibility === "private" ? "text-brand-600" : "text-muted")} />
-            <div>
-              <p className="font-semibold text-sm">Privado</p>
-              <p className="text-xs text-muted mt-0.5">
-                Apenas convidados podem entrar.
-              </p>
-            </div>
-            {visibility === "private" && <Check className="h-5 w-5 text-brand-600 shrink-0 ml-auto" />}
-          </button>
+        <CardContent className="grid grid-cols-2 gap-3">
+          {([
+            { value: "public" as const, icon: Globe, label: "Público", desc: "Visível para todos" },
+            { value: "private" as const, icon: Lock, label: "Privado", desc: "Apenas convidados" },
+          ]).map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setVisibility(opt.value)}
+              className={cn(
+                "flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-all",
+                visibility === opt.value
+                  ? "border-brand-500 bg-brand-50 ring-1 ring-brand-500"
+                  : "border-border hover:border-brand-300",
+              )}
+            >
+              <opt.icon className={cn("h-6 w-6", visibility === opt.value ? "text-brand-600" : "text-muted")} />
+              <div>
+                <p className="font-semibold text-sm">{opt.label}</p>
+                <p className="text-[11px] text-muted mt-0.5">{opt.desc}</p>
+              </div>
+              {visibility === opt.value && (
+                <div className="h-5 w-5 rounded-full bg-brand-500 flex items-center justify-center">
+                  <Check className="h-3 w-3 text-white" />
+                </div>
+              )}
+            </button>
+          ))}
         </CardContent>
       </Card>
 
@@ -259,7 +290,7 @@ export default function EditGroupPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-muted" />
+            <MapPin className="h-4 w-4 text-brand-500" />
             Local
           </CardTitle>
         </CardHeader>
@@ -285,7 +316,7 @@ export default function EditGroupPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted" />
+            <Calendar className="h-4 w-4 text-brand-500" />
             Horário
           </CardTitle>
         </CardHeader>
@@ -298,8 +329,10 @@ export default function EditGroupPage() {
                   key={day}
                   onClick={() => setDayOfWeek(day)}
                   className={cn(
-                    "rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
-                    dayOfWeek === day ? "border-brand-500 bg-brand-50 text-brand-700" : "border-border text-muted-dark hover:border-brand-300"
+                    "rounded-lg border px-3 py-2 text-xs font-medium transition-all",
+                    dayOfWeek === day
+                      ? "border-brand-500 bg-brand-500 text-white shadow-sm"
+                      : "border-border text-muted-dark hover:border-brand-300 hover:bg-brand-50/50",
                   )}
                 >
                   {day.slice(0, 3)}
@@ -321,7 +354,7 @@ export default function EditGroupPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Footprints className="h-4 w-4 text-muted" />
+            <Footprints className="h-4 w-4 text-brand-500" />
             Configurações do jogo
           </CardTitle>
         </CardHeader>
@@ -334,8 +367,10 @@ export default function EditGroupPage() {
                   key={f}
                   onClick={() => setFormat(f)}
                   className={cn(
-                    "rounded-lg border px-4 py-2 text-sm font-bold transition-all",
-                    format === f ? "border-brand-500 bg-brand-500 text-white" : "border-border text-muted-dark hover:border-brand-300"
+                    "rounded-lg border px-4 py-2.5 text-sm font-bold transition-all",
+                    format === f
+                      ? "border-brand-500 bg-brand-500 text-white shadow-sm"
+                      : "border-border text-muted-dark hover:border-brand-300 hover:bg-brand-50/50",
                   )}
                 >
                   {f}
@@ -366,7 +401,7 @@ export default function EditGroupPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Palette className="h-4 w-4 text-muted" />
+            <Palette className="h-4 w-4 text-brand-500" />
             Cor do grupo
           </CardTitle>
         </CardHeader>
@@ -377,8 +412,8 @@ export default function EditGroupPage() {
                 key={c}
                 onClick={() => setColor(c)}
                 className={cn(
-                  "h-10 w-10 rounded-xl transition-all",
-                  color === c ? "ring-2 ring-offset-2 ring-brand-500 scale-110" : "hover:scale-105"
+                  "h-11 w-11 rounded-xl transition-all relative",
+                  color === c ? "ring-2 ring-offset-2 ring-brand-500 scale-110 shadow-lg" : "hover:scale-105",
                 )}
                 style={{ backgroundColor: c }}
               >
@@ -389,26 +424,46 @@ export default function EditGroupPage() {
         </CardContent>
       </Card>
 
-      <Button
-        className="w-full"
-        size="lg"
-        onClick={handleSave}
-        disabled={!canSave || saved}
-      >
-        {saved ? (
-          <>
-            <Check className="h-4 w-4" />
-            Salvo!
-          </>
-        ) : (
-          <>
-            <Save className="h-4 w-4" />
-            Salvar alterações
-          </>
-        )}
-      </Button>
-
-      <div className="h-4" />
+      {/* Sticky Save Bar */}
+      {(hasChanges || saved) && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-surface/95 backdrop-blur-md shadow-[0_-4px_20px_rgba(0,0,0,0.08)] animate-slide-up">
+          <div className="mx-auto max-w-2xl px-4 py-3 flex items-center gap-3">
+            {saved ? (
+              <div className="flex-1 flex items-center justify-center gap-2 text-brand-600 font-semibold text-sm">
+                <div className="h-8 w-8 rounded-full bg-brand-100 flex items-center justify-center">
+                  <Check className="h-4 w-4 text-brand-600" />
+                </div>
+                Alterações salvas com sucesso!
+              </div>
+            ) : (
+              <>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">Alterações não salvas</p>
+                  <p className="text-[11px] text-muted">Salve para aplicar as mudanças</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDiscard}
+                  className="shrink-0"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Descartar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={!canSave}
+                  className="shrink-0 shadow-sm"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  Salvar
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
