@@ -27,6 +27,14 @@ export function findUserGroup(id: string): Group | undefined {
   return readUserGroups().find((g) => g.id === id);
 }
 
+export function updateUserGroup(id: string, data: Partial<Group>) {
+  const groups = readUserGroups();
+  const idx = groups.findIndex((g) => g.id === id);
+  if (idx === -1) return;
+  groups[idx] = { ...groups[idx], ...data };
+  writeUserGroups(groups);
+}
+
 export function removeUserGroup(id: string) {
   writeUserGroups(readUserGroups().filter((g) => g.id !== id));
 }

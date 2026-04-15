@@ -30,6 +30,9 @@ import {
   Share2,
   Link2,
   Check,
+  Pencil,
+  UserCog,
+  CalendarPlus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -370,6 +373,37 @@ export default function GroupDetailPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {isProprietor && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Crown className="h-4 w-4 text-accent-500" />
+                    Gestão do grupo
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Link href={`/groups/${groupId}/edit`}>
+                    <Button variant="outline" className="w-full justify-start" size="sm">
+                      <Pencil className="h-4 w-4" />
+                      Editar informações
+                    </Button>
+                  </Link>
+                  <Link href={`/groups/${groupId}/members`}>
+                    <Button variant="outline" className="w-full justify-start" size="sm">
+                      <UserCog className="h-4 w-4" />
+                      Gerenciar membros
+                    </Button>
+                  </Link>
+                  <Link href={`/groups/${groupId}/matches`}>
+                    <Button variant="outline" className="w-full justify-start" size="sm">
+                      <CalendarPlus className="h-4 w-4" />
+                      Gerenciar jogos
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            )}
 
             {isProprietor ? (
               <Button
