@@ -92,27 +92,27 @@ export default function ShufflePage() {
     setSelectedPlayer(null);
   };
 
-  const findPlayerTeam = (playerId: string): "A" | "B" | "bench" | null => {
+  const findPlayerTeam = useCallback((playerId: string): "A" | "B" | "bench" | null => {
     if (teamA.find((p) => p.id === playerId)) return "A";
     if (teamB.find((p) => p.id === playerId)) return "B";
     if (bench.find((p) => p.id === playerId)) return "bench";
     return null;
-  };
+  }, [teamA, teamB, bench]);
 
-  const removeFromCurrent = (playerId: string) => {
+  const removeFromCurrent = useCallback((playerId: string) => {
     const team = findPlayerTeam(playerId);
     if (team === "A") setTeamA((t) => t.filter((p) => p.id !== playerId));
     else if (team === "B") setTeamB((t) => t.filter((p) => p.id !== playerId));
     else if (team === "bench") setBench((t) => t.filter((p) => p.id !== playerId));
-  };
+  }, [findPlayerTeam]);
 
-  const getPlayer = (playerId: string): ShufflePlayer | undefined => {
+  const getPlayer = useCallback((playerId: string): ShufflePlayer | undefined => {
     return (
       teamA.find((p) => p.id === playerId) ||
       teamB.find((p) => p.id === playerId) ||
       bench.find((p) => p.id === playerId)
     );
-  };
+  }, [teamA, teamB, bench]);
 
   const moveToTeam = useCallback(
     (target: "A" | "B" | "bench") => {
@@ -131,7 +131,7 @@ export default function ShufflePage() {
       else setBench((t) => [...t, player]);
       setSelectedPlayer(null);
     },
-    [selectedPlayer, teamA, teamB, bench],
+    [selectedPlayer, findPlayerTeam, getPlayer, removeFromCurrent],
   );
 
   const handleDrop = (target: "A" | "B" | "bench", playerId?: string) => {

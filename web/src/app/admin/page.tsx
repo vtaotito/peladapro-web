@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -20,26 +20,25 @@ import {
 } from "@/lib/platform-admin";
 
 export default function AdminDashboardPage() {
-  const [tick, setTick] = useState(0);
+  const [users, setUsers] = useState(() => listAppUsers());
+  const [stats, setStats] = useState(() => getAdminStats());
+
+  const refresh = useCallback(() => {
+    setUsers(listAppUsers());
+    setStats(getAdminStats());
+  }, []);
 
   useEffect(() => {
     seedPlatformAdminIfNeeded();
   }, []);
 
-  const users = useMemo(() => {
-    void tick;
-    return listAppUsers();
-  }, [tick]);
-
-  const stats = useMemo(() => getAdminStats(), [tick]);
-
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key === "peladapro_accounts") setTick((t) => t + 1);
+      if (e.key === "peladapro_accounts") refresh();
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  }, [refresh]);
 
   return (
     <div className="space-y-8">

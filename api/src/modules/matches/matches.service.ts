@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service';
 import { CreateMatchDto, ConfirmMatchDto, CreateEventDto } from './dto';
-import { EventType, MatchStatus, ConfirmationStatus } from '@prisma/client';
+import { EventType, MatchStatus, ConfirmationStatus, type Prisma } from '@prisma/client';
 
 interface DraftPlayer {
   id: string;
@@ -417,7 +417,7 @@ export class MatchesService {
         type: dto.type as EventType,
         minute: dto.minute,
         round: dto.round || match.currentRound,
-        details: dto.details || undefined,
+        details: (dto.details || undefined) as Prisma.InputJsonValue | undefined,
       },
     });
 

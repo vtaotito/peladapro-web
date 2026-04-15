@@ -18,6 +18,7 @@ import {
   type StoredAccount,
 } from "@/lib/account-storage";
 import { PLATFORM_ADMIN_EMAIL, seedPlatformAdminIfNeeded } from "@/lib/platform-admin";
+import { api, isApiEnabled, setTokens, clearTokens, ApiError } from "@/lib/api";
 
 interface User {
   id?: string;
@@ -64,6 +65,11 @@ function deleteCookie(name: string) {
   document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`;
 }
 
+function persistUser(u: User) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
+  setCookie(COOKIE_NAME, "1", 30);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,29 +77,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     seedPlatformAdminIfNeeded();
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as User;
-        const withId = withStableUserId(parsed);
-        if (withId.id !== parsed.id) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(withId));
+
+    async function restore() {
+      if (isApiEnabled()) {
+        try {
+          const me = await api.auth.me();
+          const u: User = {
+            id: me.id as string,
+            name: me.name as string,
+            email: me.email as string,
+          };
+          persistUser(u);
+          setUser(u);
+          setIsLoading(false);
+          return;
+        } catch {
+          clearTokens();
         }
-        setUser(withId);
       }
-    } catch {}
-    setIsLoading(false);
+
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as User;
+          const withId = withStableUserId(parsed);
+          if (withId.id !== parsed.id) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(withId));
+          }
+          setUser(withId);
+        }
+      } catch { /* empty */ }
+      setIsLoading(false);
+    }
+
+    restore();
   }, []);
 
   const register = useCallback(
     async (name: string, email: string, password: string) => {
       const e = normalizeEmail(email);
+
+      if (isApiEnabled()) {
+        try {
+          const res = await api.auth.register({ name, email: e, password });
+          setTokens(res.accessToken, res.refreshToken);
+          const u: User = {
+            id: res.user.id as string,
+            name: res.user.name as string,
+            email: res.user.email as string,
+          };
+          persistUser(u);
+          setUser(u);
+          router.push("/dashboard");
+          return { ok: true };
+        } catch (err) {
+          const msg = err instanceof ApiError ? err.message : "Erro ao criar conta";
+          return { ok: false, error: msg };
+        }
+      }
+
       if (e === PLATFORM_ADMIN_EMAIL) {
         return { ok: false, error: "Use outro e-mail ou o painel administrativo para esta conta" };
       }
 
       const accounts = readAccounts();
-
       if (accounts[e]) {
         return { ok: false, error: "E-mail já cadastrado" };
       }
@@ -111,8 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       writeAccounts(accounts);
 
       const u: User = { id, name, email: e };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
-      setCookie(COOKIE_NAME, "1", 30);
+      persistUser(u);
       setUser(u);
       router.push("/dashboard");
       return { ok: true };
@@ -123,8 +169,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     async (email: string, password: string) => {
       const e = normalizeEmail(email);
-      const accounts = readAccounts();
 
+      if (isApiEnabled()) {
+        try {
+          const res = await api.auth.login({ email: e, password });
+          setTokens(res.accessToken, res.refreshToken);
+          const u: User = {
+            id: res.user.id as string,
+            name: res.user.name as string,
+            email: res.user.email as string,
+          };
+          persistUser(u);
+          setUser(u);
+          router.push("/dashboard");
+          return { ok: true };
+        } catch (err) {
+          const msg = err instanceof ApiError ? err.message : "Credenciais inválidas";
+          return { ok: false, error: msg };
+        }
+      }
+
+      const accounts = readAccounts();
       const acc = accounts[e];
       if (!acc || acc.password !== password) {
         return { ok: false, error: "E-mail ou senha incorretos" };
@@ -148,8 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const u: User = { id, name: acc.name, email: e };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
-      setCookie(COOKIE_NAME, "1", 30);
+      persistUser(u);
       setUser(u);
       router.push("/dashboard");
       return { ok: true };
@@ -167,6 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    clearTokens();
     localStorage.removeItem(STORAGE_KEY);
     deleteCookie(COOKIE_NAME);
     setUser(null);
