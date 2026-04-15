@@ -59,7 +59,10 @@ export default function EditGroupPage() {
         ? params.groupId[0]
         : "";
 
-  const group = myGroups.find((g) => g.id === groupId) ?? findUserGroup(groupId);
+  const group = useMemo(
+    () => myGroups.find((g) => g.id === groupId) ?? findUserGroup(groupId),
+    [groupId],
+  );
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -94,7 +97,7 @@ export default function EditGroupPage() {
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { loadFromGroup(); }, [group]);
+  useEffect(() => { loadFromGroup(); }, [groupId]);
 
   const isOwner =
     group && user && (group.owner.id === user.id || group.owner.name === user.name);
