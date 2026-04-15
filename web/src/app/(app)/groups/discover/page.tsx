@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { publicGroups, type Group } from "@/lib/mock-data";
 import { getInitials, cn } from "@/lib/utils";
+import { addUserGroup, readUserGroups } from "@/lib/group-storage";
 
 const cities = ["Todas", "São Paulo", "São Bernardo do Campo"];
 const neighborhoods = [
@@ -42,7 +43,11 @@ export default function DiscoverGroupsPage() {
   const [selectedCity, setSelectedCity] = useState("Todas");
   const [selectedNeighborhood, setSelectedNeighborhood] = useState("Todos");
   const [showFilters, setShowFilters] = useState(false);
-  const [requestedGroups, setRequestedGroups] = useState<Set<string>>(new Set());
+  const [requestedGroups, setRequestedGroups] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set<string>();
+    const joined = readUserGroups().map((g) => g.id);
+    return new Set(joined);
+  });
 
   const filteredGroups = publicGroups.filter((g) => {
     const matchesSearch =
@@ -57,6 +62,10 @@ export default function DiscoverGroupsPage() {
 
   const requestJoin = (groupId: string) => {
     setRequestedGroups((prev) => new Set([...prev, groupId]));
+    const group = publicGroups.find((g) => g.id === groupId);
+    if (group) {
+      addUserGroup({ ...group, role: "member" });
+    }
   };
 
   return (

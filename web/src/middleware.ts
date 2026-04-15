@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const protectedPaths = ["/dashboard", "/groups", "/profile", "/rankings", "/notifications", "/explore"];
+const protectedPaths = ["/dashboard", "/groups", "/profile", "/rankings", "/notifications"];
 const authPaths = ["/login", "/register"];
 const ADMIN_COOKIE = "peladapro_admin_session";
 

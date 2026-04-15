@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   Shuffle,
@@ -59,6 +60,8 @@ function positionCount(team: ShufflePlayer[]) {
 }
 
 export default function ShufflePage() {
+  const params = useParams();
+  const groupId = params.groupId as string;
   const allPlayers: ShufflePlayer[] = upcomingMatch.confirmed.map((p) => ({
     id: p.id,
     name: p.name,
@@ -269,7 +272,7 @@ export default function ShufflePage() {
   return (
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center gap-3">
-        <Link href="/groups/group-1">
+        <Link href={`/groups/${groupId}`}>
           <Button variant="ghost" size="icon" className="h-9 w-9">
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -364,7 +367,7 @@ export default function ShufflePage() {
       )}
 
       {shuffled && bench.length === 0 && (
-        <Link href={`/groups/group-1/match`}>
+        <Link href={`/groups/${groupId}/match`}>
           <Button className="w-full" size="lg" variant="pitch-gradient">
             <Check className="h-4 w-4" />
             Confirmar times e iniciar partida

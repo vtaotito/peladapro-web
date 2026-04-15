@@ -38,21 +38,39 @@ import { formatCurrency, formatTime, getInitials } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { ConfirmButtons, PresenceList } from "@/components/presence-list";
 import { getHiddenGroupIds } from "@/lib/group-membership-storage";
+import { readUserGroups } from "@/lib/group-storage";
+import { getMatchConfirmation, setMatchConfirmation } from "@/lib/match-storage";
 
 export default function DashboardPage() {
   const pathname = usePathname();
   const { user } = useAuth();
   const displayName = user?.name?.split(" ")[0] || currentUser.nickname;
-  const [myStatus, setMyStatus] = useState<MatchStatus>("confirmed");
+  const userId = user?.id ?? (user?.email === currentUser.email ? currentUser.id : undefined);
+  const [myStatus, setMyStatus] = useState<MatchStatus | null>(null);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [userGroups, setUserGroups] = useState<typeof myGroups>([]);
 
   useEffect(() => {
     setHiddenIds(getHiddenGroupIds());
-  }, [pathname]);
+    setUserGroups(readUserGroups());
+    if (userId) {
+      const matchId = upcomingMatch.id ?? upcomingMatch.groupId;
+      const saved = getMatchConfirmation(matchId, userId);
+      if (saved) setMyStatus(saved);
+    }
+  }, [pathname, userId]);
+
+  const handleConfirmPresence = (status: MatchStatus) => {
+    setMyStatus(status);
+    if (userId) {
+      const matchId = upcomingMatch.id ?? upcomingMatch.groupId;
+      setMatchConfirmation(matchId, userId, status);
+    }
+  };
 
   const visibleMyGroups = useMemo(
-    () => myGroups.filter((g) => !hiddenIds.has(g.id)),
-    [hiddenIds],
+    () => [...userGroups, ...myGroups].filter((g) => !hiddenIds.has(g.id)),
+    [hiddenIds, userGroups],
   );
 
   return (
@@ -172,7 +190,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <ConfirmButtons currentStatus={myStatus} onConfirm={setMyStatus} />
+          <ConfirmButtons currentStatus={myStatus} onConfirm={handleConfirmPresence} />
 
           <div className="mt-4">
             <PresenceList

@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { upcomingMatch, type Player } from "@/lib/mock-data";
 import { getInitials, cn } from "@/lib/utils";
+import { saveMatchResult, type MatchEvent } from "@/lib/match-storage";
 
 type StatKey =
   | "goals"
@@ -128,6 +129,31 @@ export default function MatchPage() {
   const endMatch = () => {
     setMatchState("ended");
     if (timerRef) clearInterval(timerRef);
+
+    const events: MatchEvent[] = [];
+    confirmed.forEach((p) => {
+      const s = stats[p.id];
+      const team: "A" | "B" = teamAPlayers.some((t) => t.id === p.id) ? "A" : "B";
+      if (s.goals > 0) {
+        for (let i = 0; i < s.goals; i++) {
+          events.push({ type: "goal", playerId: p.id, playerName: p.nickname, team, minute: 0 });
+        }
+      }
+      if (s.assists > 0) {
+        for (let i = 0; i < s.assists; i++) {
+          events.push({ type: "assist", playerId: p.id, playerName: p.nickname, team, minute: 0 });
+        }
+      }
+    });
+
+    saveMatchResult({
+      matchId: `match-${Date.now()}`,
+      groupId,
+      teamAScore: scoreA,
+      teamBScore: scoreB,
+      events,
+      endedAt: new Date().toISOString(),
+    });
   };
 
   const formatTimer = (s: number) => {

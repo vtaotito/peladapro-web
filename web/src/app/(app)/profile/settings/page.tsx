@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -21,6 +21,33 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { readAccounts, writeAccounts, normalizeEmail } from "@/lib/account-storage";
+
+const SETTINGS_KEY = "peladapro_settings";
+
+interface AppSettings {
+  notifications: { matches: boolean; payments: boolean; awards: boolean; groupUpdates: boolean };
+  privacy: { showProfile: boolean; showStats: boolean };
+}
+
+const defaultSettings: AppSettings = {
+  notifications: { matches: true, payments: true, awards: true, groupUpdates: false },
+  privacy: { showProfile: true, showStats: true },
+};
+
+function loadSettings(): AppSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return defaultSettings;
+    return { ...defaultSettings, ...(JSON.parse(raw) as Partial<AppSettings>) };
+  } catch {
+    return defaultSettings;
+  }
+}
+
+function persistSettings(s: AppSettings) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+}
 
 function Toggle({
   enabled,
@@ -49,17 +76,31 @@ function Toggle({
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
-  const [notifications, setNotifications] = useState({
-    matches: true,
-    payments: true,
-    awards: true,
-    groupUpdates: false,
-  });
-  const [privacy, setPrivacy] = useState({
-    showProfile: true,
-    showStats: true,
-  });
+  const [notifications, setNotifications] = useState(defaultSettings.notifications);
+  const [privacy, setPrivacy] = useState(defaultSettings.privacy);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  useEffect(() => {
+    const saved = loadSettings();
+    setNotifications(saved.notifications);
+    setPrivacy(saved.privacy);
+  }, []);
+
+  const updateNotifications = useCallback((updater: (prev: typeof notifications) => typeof notifications) => {
+    setNotifications((prev) => {
+      const next = updater(prev);
+      persistSettings({ notifications: next, privacy });
+      return next;
+    });
+  }, [privacy]);
+
+  const updatePrivacy = useCallback((updater: (prev: typeof privacy) => typeof privacy) => {
+    setPrivacy((prev) => {
+      const next = updater(prev);
+      persistSettings({ notifications, privacy: next });
+      return next;
+    });
+  }, [notifications]);
 
   return (
     <div className="space-y-5 animate-fade-in lg:max-w-2xl lg:mx-auto">
@@ -95,7 +136,7 @@ export default function SettingsPage() {
             <Toggle
               enabled={notifications.matches}
               onToggle={() =>
-                setNotifications((s) => ({ ...s, matches: !s.matches }))
+                updateNotifications((s) => ({ ...s, matches: !s.matches }))
               }
             />
           </div>
@@ -115,7 +156,7 @@ export default function SettingsPage() {
             <Toggle
               enabled={notifications.payments}
               onToggle={() =>
-                setNotifications((s) => ({ ...s, payments: !s.payments }))
+                updateNotifications((s) => ({ ...s, payments: !s.payments }))
               }
             />
           </div>
@@ -133,7 +174,7 @@ export default function SettingsPage() {
             <Toggle
               enabled={notifications.awards}
               onToggle={() =>
-                setNotifications((s) => ({ ...s, awards: !s.awards }))
+                updateNotifications((s) => ({ ...s, awards: !s.awards }))
               }
             />
           </div>
@@ -153,7 +194,7 @@ export default function SettingsPage() {
             <Toggle
               enabled={notifications.groupUpdates}
               onToggle={() =>
-                setNotifications((s) => ({
+                updateNotifications((s) => ({
                   ...s,
                   groupUpdates: !s.groupUpdates,
                 }))
@@ -186,7 +227,7 @@ export default function SettingsPage() {
             <Toggle
               enabled={privacy.showProfile}
               onToggle={() =>
-                setPrivacy((s) => ({ ...s, showProfile: !s.showProfile }))
+                updatePrivacy((s) => ({ ...s, showProfile: !s.showProfile }))
               }
             />
           </div>
@@ -210,7 +251,7 @@ export default function SettingsPage() {
             <Toggle
               enabled={privacy.showStats}
               onToggle={() =>
-                setPrivacy((s) => ({ ...s, showStats: !s.showStats }))
+                updatePrivacy((s) => ({ ...s, showStats: !s.showStats }))
               }
             />
           </div>
@@ -273,7 +314,21 @@ export default function SettingsPage() {
                   >
                     Cancelar
                   </Button>
-                  <Button variant="danger" size="sm" className="flex-1">
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => {
+                      if (user?.email) {
+                        const accounts = readAccounts();
+                        delete accounts[normalizeEmail(user.email)];
+                        writeAccounts(accounts);
+                      }
+                      localStorage.removeItem("peladapro_user");
+                      localStorage.removeItem("peladapro_settings");
+                      logout();
+                    }}
+                  >
                     Confirmar exclusão
                   </Button>
                 </div>

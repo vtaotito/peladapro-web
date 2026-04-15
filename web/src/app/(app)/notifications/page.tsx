@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Bell,
   CalendarCheck,
@@ -11,7 +12,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { notifications } from "@/lib/mock-data";
+import { notifications as mockNotifications } from "@/lib/mock-data";
 
 const typeIcons: Record<string, typeof Bell> = {
   match: CalendarCheck,
@@ -28,7 +29,14 @@ const typeColors: Record<string, { icon: string; bg: string }> = {
 };
 
 export default function NotificationsPage() {
+  const [notifications, setNotifications] = useState(() =>
+    mockNotifications.map((n) => ({ ...n })),
+  );
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const markAllRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -42,7 +50,7 @@ export default function NotificationsPage() {
           )}
         </div>
         {unreadCount > 0 && (
-          <Button variant="ghost" size="sm" className="text-xs">
+          <Button variant="ghost" size="sm" className="text-xs" onClick={markAllRead}>
             <CheckCheck className="h-3.5 w-3.5" />
             Marcar todas como lidas
           </Button>

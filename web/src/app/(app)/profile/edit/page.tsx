@@ -98,7 +98,11 @@ export default function EditProfilePage() {
                 </AvatarFallback>
               </Avatar>
             </div>
-            <button className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition-transform hover:scale-110">
+            <button
+              className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-gray-400 text-white shadow-lg cursor-not-allowed"
+              title="Upload de foto em breve"
+              onClick={() => alert("Upload de foto estará disponível em breve!")}
+            >
               <Camera className="h-4 w-4" />
             </button>
           </div>

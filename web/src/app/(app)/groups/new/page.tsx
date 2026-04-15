@@ -23,6 +23,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
+import { addUserGroup } from "@/lib/group-storage";
+import type { Group } from "@/lib/mock-data";
 
 const daysOfWeek = [
   "Segunda-feira",
@@ -44,6 +47,7 @@ const colors = [
 
 export default function NewGroupPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [address, setAddress] = useState("");
@@ -61,6 +65,47 @@ export default function NewGroupPage() {
   const canSave = name.trim() && address.trim() && city.trim() && neighborhood.trim();
 
   const handleCreate = () => {
+    const totalSpots = parseInt(format.split("x")[0], 10) * 2;
+    const nextDate = new Date();
+    const dayIndex = daysOfWeek.indexOf(dayOfWeek);
+    const todayIndex = (nextDate.getDay() + 6) % 7;
+    let daysUntil = dayIndex - todayIndex;
+    if (daysUntil <= 0) daysUntil += 7;
+    nextDate.setDate(nextDate.getDate() + daysUntil);
+    const [h, m] = time.split(":");
+    nextDate.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
+
+    const group: Group = {
+      id: `user-group-${Date.now()}`,
+      name: name.trim(),
+      description: description.trim(),
+      memberCount: 1,
+      maxMembers: parseInt(maxMembers, 10) || 30,
+      role: "admin",
+      color,
+      visibility,
+      owner: {
+        id: user?.id ?? "unknown",
+        name: user?.name ?? "Criador",
+        nickname: user?.nickname ?? user?.name?.split(" ")[0] ?? "Eu",
+        avatar: null,
+      },
+      address: address.trim(),
+      city: city.trim(),
+      neighborhood: neighborhood.trim(),
+      dayOfWeek,
+      time,
+      format,
+      pricePerMatch: parseFloat(pricePerMatch) || 0,
+      nextMatch: {
+        date: nextDate.toISOString(),
+        location: address.trim(),
+        confirmedCount: 0,
+        totalSpots,
+      },
+    };
+
+    addUserGroup(group);
     setSaved(true);
     setTimeout(() => {
       router.push("/groups");

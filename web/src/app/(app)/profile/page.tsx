@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { currentUser, playerStats, recentMatches } from "@/lib/mock-data";
 import { getInitials } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 const positionLabels: Record<string, string> = {
   GOL: "Goleiro",
@@ -29,6 +30,12 @@ const positionLabels: Record<string, string> = {
 };
 
 export default function ProfilePage() {
+  const { user } = useAuth();
+
+  const displayName = user?.name || currentUser.name;
+  const displayNickname = user?.nickname || currentUser.nickname;
+  const displayPosition = user?.position || currentUser.position;
+
   const winRate = Math.round(
     (playerStats.wins / playerStats.totalMatches) * 100
   );
@@ -41,14 +48,14 @@ export default function ProfilePage() {
           <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full border-4 border-white/20 bg-white/10">
             <Avatar className="h-full w-full">
               <AvatarFallback className="bg-white/20 text-2xl font-bold text-white">
-                {getInitials(currentUser.name)}
+                {getInitials(displayName)}
               </AvatarFallback>
             </Avatar>
           </div>
           <h1 className="font-display text-xl font-bold text-white">
-            {currentUser.name}
+            {displayName}
           </h1>
-          <p className="text-sm text-white/70">@{currentUser.nickname}</p>
+          <p className="text-sm text-white/70">@{displayNickname}</p>
         </div>
 
         <div className="-mt-6 px-4 pb-4">
@@ -56,16 +63,16 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Badge variant="pitch" className="px-3 py-1 text-sm">
-                  {currentUser.position}
+                  {displayPosition}
                 </Badge>
                 <span className="text-sm text-muted">
-                  {positionLabels[currentUser.position]}
+                  {positionLabels[displayPosition] ?? displayPosition}
                 </span>
               </div>
               <div className="flex items-center gap-1.5 rounded-lg bg-accent-50 px-3 py-1.5">
                 <Star className="h-4 w-4 fill-accent-400 text-accent-400" />
                 <span className="font-display text-lg font-extrabold text-accent-700">
-                  {currentUser.overall}
+                  {currentUser.overall /* TODO: persist real overall */}
                 </span>
               </div>
             </div>

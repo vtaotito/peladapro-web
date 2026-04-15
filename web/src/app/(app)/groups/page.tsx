@@ -20,19 +20,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { myGroups } from "@/lib/mock-data";
 import { getHiddenGroupIds } from "@/lib/group-membership-storage";
+import { readUserGroups } from "@/lib/group-storage";
 
 export default function GroupsPage() {
   const pathname = usePathname();
   const [search, setSearch] = useState("");
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
 
+  const [userGroups, setUserGroups] = useState<typeof myGroups>([]);
+
   useEffect(() => {
     setHiddenIds(getHiddenGroupIds());
+    setUserGroups(readUserGroups());
   }, [pathname]);
 
+  const allGroups = useMemo(
+    () => [...userGroups, ...myGroups],
+    [userGroups],
+  );
+
   const visibleGroups = useMemo(
-    () => myGroups.filter((g) => !hiddenIds.has(g.id)),
-    [hiddenIds],
+    () => allGroups.filter((g) => !hiddenIds.has(g.id)),
+    [allGroups, hiddenIds],
   );
 
   const filteredGroups = visibleGroups.filter((g) =>
