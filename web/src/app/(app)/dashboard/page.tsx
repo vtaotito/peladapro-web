@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { getHiddenGroupIds } from "@/lib/group-membership-storage";
 import { readUserGroups } from "@/lib/group-storage";
+import { getGroupMembers, initGroupOwnerAsMember } from "@/lib/member-storage";
 import type { Group } from "@/lib/mock-data";
 
 export default function DashboardPage() {
@@ -84,7 +85,7 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-3 mt-0.5">
                         <span className="text-xs text-muted flex items-center gap-1">
                           <Users className="h-3 w-3" />
-                          {group.memberCount}
+                          {(() => { initGroupOwnerAsMember(group.id, group.owner); return getGroupMembers(group.id).length; })()}
                         </span>
                         <span className="text-xs text-muted">
                           {group.dayOfWeek} • {group.time}h

@@ -25,6 +25,7 @@ import { getInitials } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { resolveGroupFromInvite } from "@/lib/invite-storage";
 import { addUserGroup, readUserGroups } from "@/lib/group-storage";
+import { addGroupMember, getGroupMembers, initGroupOwnerAsMember } from "@/lib/member-storage";
 import type { Group } from "@/lib/mock-data";
 
 export default function InvitePage() {
@@ -67,6 +68,18 @@ export default function InvitePage() {
     const isUserGroup = readUserGroups().some((g) => g.id === group.id);
     if (!isUserGroup) {
       addUserGroup({ ...group, role: "member" });
+    }
+    initGroupOwnerAsMember(group.id, group.owner);
+    if (user) {
+      addGroupMember(group.id, {
+        id: user.id,
+        name: user.name || "Jogador",
+        nickname: user.nickname || user.name?.split(" ")[0] || "Jogador",
+        position: user.position || "MEI",
+        overall: 7.0,
+        role: "member",
+        joinedAt: new Date().toISOString(),
+      });
     }
     setJoined(true);
     setTimeout(() => {
@@ -133,24 +146,26 @@ export default function InvitePage() {
                 {group.name}
               </h1>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="flex items-center gap-1 text-xs text-muted">
-                  <Users className="h-3 w-3" />
-                  {group.memberCount}/{group.maxMembers}
-                </span>
-                <Badge
-                  variant={
-                    group.maxMembers - group.memberCount > 5
-                      ? "success"
-                      : group.maxMembers - group.memberCount > 0
-                        ? "warning"
-                        : "danger"
-                  }
-                  className="text-[10px] px-1.5 py-0"
-                >
-                  {group.maxMembers - group.memberCount > 0
-                    ? `${group.maxMembers - group.memberCount} vagas`
-                    : "Lotado"}
-                </Badge>
+                {(() => {
+                  initGroupOwnerAsMember(group.id, group.owner);
+                  const realCount = getGroupMembers(group.id).length;
+                  const count = realCount > 0 ? realCount : group.memberCount;
+                  const spotsLeft = group.maxMembers - count;
+                  return (
+                    <>
+                      <span className="flex items-center gap-1 text-xs text-muted">
+                        <Users className="h-3 w-3" />
+                        {count}/{group.maxMembers}
+                      </span>
+                      <Badge
+                        variant={spotsLeft > 5 ? "success" : spotsLeft > 0 ? "warning" : "danger"}
+                        className="text-[10px] px-1.5 py-0"
+                      >
+                        {spotsLeft > 0 ? `${spotsLeft} vagas` : "Lotado"}
+                      </Badge>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>

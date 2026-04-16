@@ -200,7 +200,7 @@ export default function GroupDetailPage() {
             </div>
             <p className="text-xs text-muted flex items-center gap-1">
               <Users className="h-3 w-3" />
-              {group.memberCount}/{group.maxMembers} membros
+              {(() => { initGroupOwnerAsMember(groupId, group.owner); return getGroupMembers(groupId).length; })()}/{group.maxMembers} membros
             </p>
           </div>
         </div>
@@ -347,7 +347,7 @@ export default function GroupDetailPage() {
               <CardContent>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-lg bg-surface-secondary p-3 text-center">
-                    <p className="text-2xl font-bold text-brand-600">{group.memberCount}</p>
+                    <p className="text-2xl font-bold text-brand-600">{getGroupMembers(groupId).length}</p>
                     <p className="text-xs text-muted">Membros</p>
                   </div>
                   <div className="rounded-lg bg-surface-secondary p-3 text-center">
@@ -553,47 +553,56 @@ export default function GroupDetailPage() {
           initGroupOwnerAsMember(groupId, group.owner);
           const realMembers = getGroupMembers(groupId);
           return (
-            <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
-              {realMembers.map((member) => (
-                <Card key={member.id} className="border-border/50">
-                  <CardContent className="flex items-center gap-3 p-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback className="text-xs">{getInitials(member.name)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-semibold">{member.nickname}</p>
-                        {member.role === "admin" && <Crown className="h-3.5 w-3.5 text-accent-500" />}
-                        {member.role === "moderator" && <Shield className="h-3.5 w-3.5 text-blue-500" />}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-muted-dark">{realMembers.length} membro{realMembers.length !== 1 ? "s" : ""}</p>
+                <Link href={`/groups/${groupId}/members`}>
+                  <Button size="sm" variant="outline" className="text-xs h-8">
+                    <Users className="h-3.5 w-3.5" />
+                    Ver todos
+                  </Button>
+                </Link>
+              </div>
+              <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
+                {realMembers.map((member) => (
+                  <Card key={member.id} className="border-border/50">
+                    <CardContent className="flex items-center gap-3 p-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className="text-xs">{getInitials(member.name)}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate text-sm font-semibold">{member.nickname}</p>
+                          {member.role === "admin" && <Crown className="h-3.5 w-3.5 text-accent-500" />}
+                          {member.role === "moderator" && <Shield className="h-3.5 w-3.5 text-blue-500" />}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs text-muted">
+                          <Badge variant="secondary" className="text-[9px] px-1.5 py-0">{member.position}</Badge>
+                          <span>{member.name}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-muted">
-                        <Badge variant="secondary" className="text-[9px] px-1.5 py-0">{member.position}</Badge>
-                        <span>{member.name}</span>
+                      <div className="flex items-center gap-1 rounded-md bg-accent-50 px-2 py-0.5">
+                        <Star className="h-3 w-3 fill-accent-400 text-accent-400" />
+                        <span className="text-xs font-bold text-accent-700">{member.overall.toFixed(1)}</span>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1 rounded-md bg-accent-50 px-2 py-0.5">
-                      <Star className="h-3 w-3 fill-accent-400 text-accent-400" />
-                      <span className="text-xs font-bold text-accent-700">{member.overall.toFixed(1)}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {realMembers.length <= 1 && (
-                <Card className="border-dashed border-border lg:col-span-2">
-                  <CardContent className="py-8 text-center">
-                    <Users className="h-8 w-8 text-muted-light mx-auto mb-2" />
-                    <p className="text-sm text-muted">Convide jogadores para o grupo!</p>
-                    {isProprietor && (
+                    </CardContent>
+                  </Card>
+                ))}
+                {realMembers.length <= 1 && (
+                  <Card className="border-dashed border-border lg:col-span-2">
+                    <CardContent className="py-8 text-center">
+                      <Users className="h-8 w-8 text-muted-light mx-auto mb-2" />
+                      <p className="text-sm text-muted">Convide jogadores para o grupo!</p>
                       <Link href={`/groups/${groupId}/members`}>
                         <Button size="sm" variant="outline" className="mt-3">
                           <UserCog className="h-3.5 w-3.5" />
-                          Gerenciar membros
+                          {isProprietor ? "Gerenciar membros" : "Ver membros"}
                         </Button>
                       </Link>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </div>
           );
         })()

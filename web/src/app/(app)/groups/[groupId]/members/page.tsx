@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   UserPlus,
@@ -14,7 +14,6 @@ import {
   Search,
   X,
   Check,
-  ChevronRight,
   Target,
   TrendingUp,
 } from "lucide-react";
@@ -49,7 +48,6 @@ const positionColors: Record<string, string> = {
 };
 
 export default function MembersPage() {
-  const router = useRouter();
   const params = useParams();
   const { user } = useAuth();
 
@@ -83,10 +81,6 @@ export default function MembersPage() {
     initGroupOwnerAsMember(groupId, group.owner);
     setMembers(getGroupMembers(groupId));
   }, [group, groupId]);
-
-  useEffect(() => {
-    if (group && !isOwner) router.replace(`/groups/${groupId}`);
-  }, [group, isOwner, groupId, router]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -174,10 +168,12 @@ export default function MembersPage() {
           <h1 className="font-display text-xl font-bold">Membros</h1>
           <p className="text-xs text-muted truncate">{group.name}</p>
         </div>
-        <Button size="sm" onClick={() => setShowAddModal(true)} className="shrink-0 shadow-sm">
-          <UserPlus className="h-4 w-4" />
-          Adicionar
-        </Button>
+        {isOwner && (
+          <Button size="sm" onClick={() => setShowAddModal(true)} className="shrink-0 shadow-sm">
+            <UserPlus className="h-4 w-4" />
+            Adicionar
+          </Button>
+        )}
       </div>
 
       {/* Stats Row */}
@@ -248,7 +244,7 @@ export default function MembersPage() {
                   ? `Nenhum membro encontrado para "${searchTerm}".`
                   : "Adicione membros ao grupo para começar."}
               </p>
-              {!searchTerm && (
+              {!searchTerm && isOwner && (
                 <Button size="sm" className="mt-4" onClick={() => setShowAddModal(true)}>
                   <UserPlus className="h-4 w-4" />
                   Adicionar primeiro membro
@@ -315,7 +311,7 @@ export default function MembersPage() {
                           {member.overall.toFixed(1)}
                         </span>
                       </div>
-                      {!isAdmin && !isBeingRemoved && (
+                      {isOwner && !isAdmin && !isBeingRemoved && (
                         <Button
                           size="icon"
                           variant="ghost"
@@ -462,7 +458,7 @@ export default function MembersPage() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
           <div className="flex items-center gap-2 rounded-xl bg-pitch px-4 py-2.5 text-sm font-medium text-white shadow-lg">
             <Check className="h-4 w-4" />
             {toast}

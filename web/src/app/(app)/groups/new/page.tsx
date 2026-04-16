@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { addUserGroup } from "@/lib/group-storage";
+import { initGroupOwnerAsMember } from "@/lib/member-storage";
 import type { Group } from "@/lib/mock-data";
 
 const daysOfWeek = [
@@ -106,6 +107,7 @@ export default function NewGroupPage() {
     };
 
     addUserGroup(group);
+    initGroupOwnerAsMember(group.id, group.owner);
     setSaved(true);
     setTimeout(() => {
       router.push("/groups");

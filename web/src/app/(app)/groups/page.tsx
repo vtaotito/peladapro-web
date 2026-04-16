@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { getHiddenGroupIds } from "@/lib/group-membership-storage";
 import type { Group } from "@/lib/mock-data";
 import { readUserGroups } from "@/lib/group-storage";
+import { getGroupMembers, initGroupOwnerAsMember } from "@/lib/member-storage";
 
 export default function GroupsPage() {
   const pathname = usePathname();
@@ -119,7 +120,7 @@ export default function GroupsPage() {
                       <div className="mt-1 flex items-center gap-3 text-xs text-muted">
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
-                          {group.memberCount}/{group.maxMembers}
+                          {(() => { initGroupOwnerAsMember(group.id, group.owner); return getGroupMembers(group.id).length; })()}/{group.maxMembers}
                         </span>
                         <span>{group.dayOfWeek} • {group.time}h</span>
                       </div>
