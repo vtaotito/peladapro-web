@@ -94,8 +94,12 @@ export function findMatch(matchId: string): Match | null {
 }
 
 export function createMatch(groupId: string, teamA: MatchTeamPlayer[], teamB: MatchTeamPlayer[]): Match {
-  const existing = getActiveMatch(groupId);
-  if (existing) throw new Error("Já existe uma partida ativa neste grupo.");
+  const all = readAll();
+
+  const activeIdx = all.findIndex((m) => m.groupId === groupId && m.status === "active");
+  if (activeIdx !== -1) {
+    all[activeIdx] = { ...all[activeIdx], status: "ended", endedAt: new Date().toISOString() };
+  }
 
   const match: Match = {
     id: `match-${Date.now()}`,
@@ -111,7 +115,6 @@ export function createMatch(groupId: string, teamA: MatchTeamPlayer[], teamB: Ma
     endedAt: null,
   };
 
-  const all = readAll();
   all.unshift(match);
   writeAll(all);
   return match;

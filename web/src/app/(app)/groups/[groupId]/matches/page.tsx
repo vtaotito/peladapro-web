@@ -144,10 +144,6 @@ export default function MatchesPage() {
   }, [groupId, group]);
 
   const handleStartNewMatch = () => {
-    if (activeMatch) {
-      showToast("Já existe uma partida ativa!");
-      return;
-    }
     if (members.length < 2) {
       showToast("Adicione pelo menos 2 membros ao grupo.");
       return;
@@ -161,12 +157,9 @@ export default function MatchesPage() {
       id: m.id, name: m.name, nickname: m.nickname, position: m.position, overall: m.overall, stats: defaultPlayerStats(),
     }));
 
-    try {
-      const match = createMatch(groupId, teamA, teamB);
-      router.push(`/groups/${groupId}/match?id=${match.id}`);
-    } catch {
-      showToast("Já existe uma partida ativa!");
-    }
+    const match = createMatch(groupId, teamA, teamB);
+    refresh();
+    router.push(`/groups/${groupId}/match?id=${match.id}`);
   };
 
   const handleDeleteMatch = (matchId: string) => {
@@ -309,15 +302,11 @@ export default function MatchesPage() {
         <div className="grid grid-cols-2 gap-3">
           <Button
             onClick={handleStartNewMatch}
-            disabled={!!activeMatch}
             className="h-auto py-3 shadow-sm"
-            variant={activeMatch ? "outline" : "default"}
           >
             <div className="flex flex-col items-center gap-1.5">
               <ClipboardList className="h-5 w-5" />
-              <span className="text-xs font-semibold">
-                {activeMatch ? "Partida em curso" : "Nova partida"}
-              </span>
+              <span className="text-xs font-semibold">Nova partida</span>
             </div>
           </Button>
           <Button
@@ -538,7 +527,7 @@ export default function MatchesPage() {
                   {isOwner ? "Inicie uma nova partida para registrar o Scout." : "Aguarde o organizador iniciar uma partida."}
                 </p>
                 {isOwner && (
-                  <Button size="sm" className="mt-4" onClick={handleStartNewMatch} disabled={!!activeMatch}>
+                  <Button size="sm" className="mt-4" onClick={handleStartNewMatch}>
                     <Play className="h-4 w-4" />
                     Nova partida
                   </Button>
@@ -597,7 +586,6 @@ export default function MatchesPage() {
                     size="sm"
                     className="flex-1"
                     onClick={handleStartNewMatch}
-                    disabled={!!activeMatch}
                   >
                     <ClipboardList className="h-3.5 w-3.5" />
                     Iniciar Scout
