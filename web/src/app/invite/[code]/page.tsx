@@ -70,11 +70,11 @@ export default function InvitePage() {
       addUserGroup({ ...group, role: "member" });
     }
     initGroupOwnerAsMember(group.id, group.owner);
-    if (user) {
+    if (user && user.id) {
       addGroupMember(group.id, {
         id: user.id,
         name: user.name || "Jogador",
-        nickname: user.nickname || user.name?.split(" ")[0] || "Jogador",
+        nickname: user.nickname || user.name.split(" ")[0] || "Jogador",
         position: user.position || "MEI",
         overall: 7.0,
         role: "member",
