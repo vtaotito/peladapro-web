@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Shuffle,
@@ -21,6 +21,7 @@ import type { Player } from "@/lib/mock-data";
 import { getInitials, cn } from "@/lib/utils";
 import { getGroupMembers, initGroupOwnerAsMember } from "@/lib/member-storage";
 import { findUserGroup } from "@/lib/group-storage";
+import { getActiveMatch, createMatch, defaultPlayerStats, type MatchTeamPlayer } from "@/lib/match-storage";
 
 type ShufflePlayer = Player & { status?: string };
 
@@ -63,6 +64,7 @@ function positionCount(team: ShufflePlayer[]) {
 
 export default function ShufflePage() {
   const params = useParams();
+  const router = useRouter();
   const groupId = params.groupId as string;
 
   const group = useMemo(() => findUserGroup(groupId), [groupId]);
@@ -398,12 +400,34 @@ export default function ShufflePage() {
       )}
 
       {shuffled && bench.length === 0 && (
-        <Link href={`/groups/${groupId}/match`}>
-          <Button className="w-full" size="lg" variant="pitch-gradient">
-            <Check className="h-4 w-4" />
-            Confirmar times e iniciar partida
-          </Button>
-        </Link>
+        <Button
+          className="w-full"
+          size="lg"
+          variant="pitch-gradient"
+          disabled={!!getActiveMatch(groupId)}
+          onClick={() => {
+            const active = getActiveMatch(groupId);
+            if (active) {
+              router.push(`/groups/${groupId}/match?id=${active.id}`);
+              return;
+            }
+            const mTeamA: MatchTeamPlayer[] = teamA.map((p) => ({
+              id: p.id, name: p.name, nickname: p.nickname, position: p.position, overall: p.overall, stats: defaultPlayerStats(),
+            }));
+            const mTeamB: MatchTeamPlayer[] = teamB.map((p) => ({
+              id: p.id, name: p.name, nickname: p.nickname, position: p.position, overall: p.overall, stats: defaultPlayerStats(),
+            }));
+            try {
+              const match = createMatch(groupId, mTeamA, mTeamB);
+              router.push(`/groups/${groupId}/match?id=${match.id}`);
+            } catch {
+              router.push(`/groups/${groupId}/matches`);
+            }
+          }}
+        >
+          <Check className="h-4 w-4" />
+          {getActiveMatch(groupId) ? "Partida em curso — abrir scout" : "Confirmar times e iniciar partida"}
+        </Button>
       )}
     </div>
   );

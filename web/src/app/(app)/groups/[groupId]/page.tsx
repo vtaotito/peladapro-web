@@ -47,7 +47,7 @@ import {
   isGroupHiddenFromUser,
 } from "@/lib/group-membership-storage";
 import { findUserGroup, removeUserGroup } from "@/lib/group-storage";
-import { getMatchResults } from "@/lib/match-storage";
+import { getMatchHistory, getActiveMatch, getLegacyResults } from "@/lib/match-storage";
 import { getOrCreateInvite, buildInviteUrl } from "@/lib/invite-storage";
 import { getGroupMembers, initGroupOwnerAsMember } from "@/lib/member-storage";
 import { getGroupGames } from "@/lib/game-storage";
@@ -446,8 +446,9 @@ export default function GroupDetailPage() {
             <div className="lg:col-span-2 space-y-4">
               {(() => {
                 const scheduledGames = getGroupGames(groupId).filter((g) => g.status === "scheduled");
-                const savedResults = getMatchResults(groupId);
-                const hasContent = scheduledGames.length > 0 || savedResults.length > 0;
+                const matchHistory = getMatchHistory(groupId);
+                const active = getActiveMatch(groupId);
+                const hasContent = scheduledGames.length > 0 || matchHistory.length > 0 || !!active;
 
                 if (!hasContent) {
                   return (
@@ -459,18 +460,10 @@ export default function GroupDetailPage() {
                           {isProprietor ? "Agende jogos ou inicie o Scout." : "Aguardando o organizador agendar jogos."}
                         </p>
                         <div className="flex items-center justify-center gap-2 mt-4">
-                          {isProprietor && (
-                            <Link href={`/groups/${group.id}/matches`}>
-                              <Button size="sm" variant="outline">
-                                <CalendarPlus className="h-4 w-4" />
-                                Agendar jogo
-                              </Button>
-                            </Link>
-                          )}
-                          <Link href={`/groups/${group.id}/match`}>
+                          <Link href={`/groups/${group.id}/matches`}>
                             <Button size="sm">
                               <ClipboardList className="h-4 w-4" />
-                              Iniciar Scout
+                              Ver partidas
                             </Button>
                           </Link>
                         </div>
@@ -481,17 +474,32 @@ export default function GroupDetailPage() {
 
                 return (
                   <>
+                    {active && (
+                      <Link href={`/groups/${groupId}/match?id=${active.id}`}>
+                        <Card className="overflow-hidden border-brand-300 bg-brand-50/30 cursor-pointer hover:shadow-md transition-all">
+                          <CardContent className="p-3.5">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-xl bg-brand-500 flex items-center justify-center animate-pulse">
+                                <ClipboardList className="h-5 w-5 text-white" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-brand-700">Partida ao vivo</p>
+                                <p className="text-xs text-brand-600/70">{active.scoreA} x {active.scoreB} · Toque para abrir o Scout</p>
+                              </div>
+                              <Badge variant="success" className="text-[10px] shrink-0 animate-pulse">Ao vivo</Badge>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    )}
+
                     {scheduledGames.length > 0 && (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <h3 className="font-display font-bold text-sm">Próximos jogos</h3>
-                          {isProprietor && (
-                            <Link href={`/groups/${groupId}/matches`}>
-                              <Button variant="ghost" size="sm" className="text-xs h-7">
-                                Ver todos
-                              </Button>
-                            </Link>
-                          )}
+                          <Link href={`/groups/${groupId}/matches`}>
+                            <Button variant="ghost" size="sm" className="text-xs h-7">Ver todos</Button>
+                          </Link>
                         </div>
                         {scheduledGames.slice(0, 2).map((game) => (
                           <Card key={game.id} className="border-brand-200/50 bg-brand-50/20">
@@ -517,26 +525,36 @@ export default function GroupDetailPage() {
                       </div>
                     )}
 
-                    {savedResults.length > 0 && (
+                    {matchHistory.length > 0 && (
                       <div className="space-y-3">
-                        <h3 className="font-display font-bold text-sm">Resultados</h3>
-                        {savedResults.map((result) => (
-                          <Card key={result.matchId} className="border-border/50">
-                            <CardContent className="p-3.5">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs text-muted">
-                                  {new Date(result.endedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-center gap-4">
-                                <span className="flex-1 text-right text-sm font-semibold">Time A</span>
-                                <span className="font-display text-2xl font-extrabold text-pitch">{result.teamAScore}</span>
-                                <span className="font-bold text-muted-light">x</span>
-                                <span className="font-display text-2xl font-extrabold text-pitch">{result.teamBScore}</span>
-                                <span className="flex-1 text-sm font-semibold">Time B</span>
-                              </div>
-                            </CardContent>
-                          </Card>
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-display font-bold text-sm">Últimos resultados</h3>
+                          <Link href={`/groups/${groupId}/matches`}>
+                            <Button variant="ghost" size="sm" className="text-xs h-7">Ver todos</Button>
+                          </Link>
+                        </div>
+                        {matchHistory.slice(0, 3).map((result) => (
+                          <Link key={result.id} href={`/groups/${groupId}/match?id=${result.id}&view=true`}>
+                            <Card className="border-border/50 cursor-pointer hover:shadow-md transition-all mb-3">
+                              <CardContent className="p-3.5">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs text-muted">
+                                    {result.endedAt ? new Date(result.endedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "—"}
+                                  </span>
+                                  <Badge variant={result.scoreA !== result.scoreB ? "success" : "secondary"} className="text-[9px]">
+                                    {result.scoreA > result.scoreB ? "Verde venceu" : result.scoreB > result.scoreA ? "Branco venceu" : "Empate"}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center justify-center gap-4">
+                                  <span className="flex-1 text-right text-xs font-medium text-muted">Verde</span>
+                                  <span className="font-display text-2xl font-extrabold text-pitch">{result.scoreA}</span>
+                                  <span className="font-bold text-muted-light">x</span>
+                                  <span className="font-display text-2xl font-extrabold text-pitch">{result.scoreB}</span>
+                                  <span className="flex-1 text-xs font-medium text-muted">Branco</span>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </Link>
                         ))}
                       </div>
                     )}
