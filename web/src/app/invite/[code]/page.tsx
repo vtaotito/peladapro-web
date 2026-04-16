@@ -26,7 +26,6 @@ import { useAuth } from "@/lib/auth";
 import { resolveGroupFromInvite } from "@/lib/invite-storage";
 import { addUserGroup, readUserGroups } from "@/lib/group-storage";
 import type { Group } from "@/lib/mock-data";
-import { myGroups } from "@/lib/mock-data";
 
 export default function InvitePage() {
   const params = useParams();
@@ -55,9 +54,8 @@ export default function InvitePage() {
     }
     setGroup(resolved);
 
-    const isMock = myGroups.some((g) => g.id === resolved.id);
     const isUserGroup = readUserGroups().some((g) => g.id === resolved.id);
-    if (isMock || isUserGroup) {
+    if (isUserGroup) {
       setAlreadyMember(true);
     }
 

@@ -9,7 +9,6 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { currentUser } from "@/lib/mock-data";
 import {
   ACCOUNTS_KEY,
   readAccounts,
@@ -29,8 +28,7 @@ interface User {
   positions?: string[];
 }
 
-function newUserId(email: string): string {
-  if (email === normalizeEmail(currentUser.email)) return currentUser.id;
+function newUserId(_email: string): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
   return `user-${Date.now()}`;
 }

@@ -25,7 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { publicGroups, myGroups, type Group } from "@/lib/mock-data";
+import type { Group } from "@/lib/mock-data";
 import { getInitials, cn } from "@/lib/utils";
 import { addUserGroup, readUserGroups } from "@/lib/group-storage";
 
@@ -39,21 +39,11 @@ export default function DiscoverGroupsPage() {
 
   useEffect(() => {
     const userGroupIds = readUserGroups().map((g) => g.id);
-    const myGroupIds = myGroups.map((g) => g.id);
-    setJoinedIds(new Set([...userGroupIds, ...myGroupIds]));
+    setJoinedIds(new Set(userGroupIds));
   }, []);
 
   const allPublicGroups = useMemo(() => {
-    const userPublicGroups = readUserGroups().filter(
-      (g) => g.visibility === "public",
-    );
-    const combined = [...publicGroups];
-    userPublicGroups.forEach((ug) => {
-      if (!combined.some((g) => g.id === ug.id)) {
-        combined.push(ug);
-      }
-    });
-    return combined;
+    return readUserGroups().filter((g) => g.visibility === "public");
   }, []);
 
   const cities = useMemo(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -17,8 +17,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { upcomingMatch, type Player } from "@/lib/mock-data";
+import type { Player } from "@/lib/mock-data";
 import { getInitials, cn } from "@/lib/utils";
+import { getGroupMembers, initGroupOwnerAsMember } from "@/lib/member-storage";
+import { findUserGroup } from "@/lib/group-storage";
 
 type ShufflePlayer = Player & { status?: string };
 
@@ -27,7 +29,7 @@ function balancedShuffle(players: ShufflePlayer[]): [ShufflePlayer[], ShufflePla
   const teamA: ShufflePlayer[] = [];
   const teamB: ShufflePlayer[] = [];
 
-  sorted.forEach((player, i) => {
+  sorted.forEach((player) => {
     const sumA = teamA.reduce((s, p) => s + p.overall, 0);
     const sumB = teamB.reduce((s, p) => s + p.overall, 0);
 
@@ -62,14 +64,21 @@ function positionCount(team: ShufflePlayer[]) {
 export default function ShufflePage() {
   const params = useParams();
   const groupId = params.groupId as string;
-  const allPlayers: ShufflePlayer[] = upcomingMatch.confirmed.map((p) => ({
-    id: p.id,
-    name: p.name,
-    nickname: p.nickname,
-    position: p.position,
-    overall: p.overall,
-    avatar: p.avatar,
-  }));
+
+  const group = useMemo(() => findUserGroup(groupId), [groupId]);
+  const groupName = group?.name ?? "Pelada";
+
+  const allPlayers: ShufflePlayer[] = useMemo(() => {
+    if (group) initGroupOwnerAsMember(groupId, group.owner);
+    return getGroupMembers(groupId).map((m) => ({
+      id: m.id,
+      name: m.name,
+      nickname: m.nickname,
+      position: m.position,
+      overall: m.overall,
+      avatar: "",
+    }));
+  }, [groupId, group]);
 
   const [teamA, setTeamA] = useState<ShufflePlayer[]>([]);
   const [teamB, setTeamB] = useState<ShufflePlayer[]>([]);
@@ -269,6 +278,28 @@ export default function ShufflePage() {
     Number(teamAvg(teamA)) - Number(teamAvg(teamB))
   );
 
+  if (allPlayers.length === 0) {
+    return (
+      <div className="space-y-5 animate-fade-in">
+        <div className="flex items-center gap-3">
+          <Link href={`/groups/${groupId}`}>
+            <Button variant="ghost" size="icon" className="h-9 w-9">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <h1 className="font-display text-xl font-bold">Sorteio de Times</h1>
+        </div>
+        <Card className="border-dashed">
+          <CardContent className="py-12 text-center">
+            <Users className="h-10 w-10 text-muted-light mx-auto mb-3" />
+            <p className="font-display font-bold">Sem jogadores</p>
+            <p className="text-sm text-muted mt-1">Adicione membros ao grupo para sortear times.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center gap-3">
@@ -280,7 +311,7 @@ export default function ShufflePage() {
         <div className="flex-1">
           <h1 className="font-display text-xl font-bold">Sorteio de Times</h1>
           <p className="text-xs text-muted">
-            {upcomingMatch.groupName} · {upcomingMatch.confirmed.length} jogadores
+            {groupName} · {allPlayers.length} jogadores
           </p>
         </div>
       </div>

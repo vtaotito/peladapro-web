@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -28,9 +28,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { upcomingMatch, type Player } from "@/lib/mock-data";
+import type { Player } from "@/lib/mock-data";
 import { getInitials, cn } from "@/lib/utils";
 import { saveMatchResult, type MatchEvent } from "@/lib/match-storage";
+import { getGroupMembers, initGroupOwnerAsMember } from "@/lib/member-storage";
+import { findUserGroup } from "@/lib/group-storage";
 
 type StatKey =
   | "goals"
@@ -94,9 +96,23 @@ export default function MatchPage() {
       ? params.groupId
       : Array.isArray(params.groupId)
         ? params.groupId[0]
-        : "group-1";
+        : "";
 
-  const confirmed = upcomingMatch.confirmed;
+  const group = useMemo(() => findUserGroup(groupId), [groupId]);
+  const groupName = group?.name ?? "Pelada";
+
+  const confirmed: Player[] = useMemo(() => {
+    if (group) initGroupOwnerAsMember(groupId, group.owner);
+    return getGroupMembers(groupId).map((m) => ({
+      id: m.id,
+      name: m.name,
+      nickname: m.nickname,
+      position: m.position,
+      overall: m.overall,
+      avatar: "",
+    }));
+  }, [groupId, group]);
+
   const half = Math.ceil(confirmed.length / 2);
   const teamAPlayers = confirmed.slice(0, half);
   const teamBPlayers = confirmed.slice(half);
@@ -133,6 +149,7 @@ export default function MatchPage() {
     const events: MatchEvent[] = [];
     confirmed.forEach((p) => {
       const s = stats[p.id];
+      if (!s) return;
       const team: "A" | "B" = teamAPlayers.some((t) => t.id === p.id) ? "A" : "B";
       if (s.goals > 0) {
         for (let i = 0; i < s.goals; i++) {
@@ -165,7 +182,7 @@ export default function MatchPage() {
   const updateStat = useCallback(
     (playerId: string, stat: StatKey, delta: number) => {
       setStats((prev) => {
-        const current = prev[playerId][stat];
+        const current = prev[playerId]?.[stat] ?? 0;
         const config = statConfig.find((c) => c.key === stat);
         const newVal = Math.max(0, current + delta);
         if (config?.max && newVal > config.max) return prev;
@@ -196,6 +213,7 @@ export default function MatchPage() {
     const totals = defaultStats();
     players.forEach((p) => {
       const s = stats[p.id];
+      if (!s) return;
       (Object.keys(totals) as StatKey[]).forEach((k) => {
         totals[k] += s[k];
       });
@@ -210,7 +228,7 @@ export default function MatchPage() {
     playerId: string;
     stat: (typeof statConfig)[0];
   }) => {
-    const val = stats[playerId][stat.key];
+    const val = stats[playerId]?.[stat.key] ?? 0;
     const Icon = stat.icon;
     return (
       <div className="flex items-center justify-between py-1.5">
@@ -244,7 +262,7 @@ export default function MatchPage() {
   const PlayerRow = ({ player }: { player: (typeof confirmed)[0] }) => {
     const isExpanded = expandedPlayer === player.id;
     const s = stats[player.id];
-    const hasStats = Object.values(s).some((v) => v > 0);
+    const hasStats = s && Object.values(s).some((v) => v > 0);
 
     return (
       <Card className={cn("transition-all", isExpanded && "ring-1 ring-brand-200")}>
@@ -262,7 +280,7 @@ export default function MatchPage() {
               <p className="truncate text-sm font-semibold">{player.nickname}</p>
               <p className="text-[10px] text-muted">{player.position}</p>
             </div>
-            {hasStats && (
+            {hasStats && s && (
               <div className="flex flex-wrap items-center justify-end gap-1.5 text-[10px] max-w-[42%]">
                 {s.goals > 0 && (
                   <span className="flex items-center gap-0.5 text-brand-600 font-bold">
@@ -308,6 +326,28 @@ export default function MatchPage() {
   const totalsA = teamTotalStats(teamAPlayers);
   const totalsB = teamTotalStats(teamBPlayers);
 
+  if (confirmed.length === 0) {
+    return (
+      <div className="space-y-4 animate-fade-in">
+        <div className="flex items-center gap-3">
+          <Link href={`/groups/${groupId}`}>
+            <Button variant="ghost" size="icon" className="h-9 w-9">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <h1 className="font-display text-lg font-bold">Scout da Partida</h1>
+        </div>
+        <Card className="border-dashed">
+          <CardContent className="py-12 text-center">
+            <Users className="h-10 w-10 text-muted-light mx-auto mb-3" />
+            <p className="font-display font-bold">Sem jogadores</p>
+            <p className="text-sm text-muted mt-1">Adicione membros ao grupo para iniciar o scout.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center gap-3">
@@ -318,7 +358,7 @@ export default function MatchPage() {
         </Link>
         <div className="flex-1">
           <h1 className="font-display text-lg font-bold">Scout da Partida</h1>
-          <p className="text-xs text-muted">{upcomingMatch.groupName}</p>
+          <p className="text-xs text-muted">{groupName}</p>
         </div>
         <Badge
           variant={
@@ -521,8 +561,8 @@ export default function MatchPage() {
                   },
                 ].map(({ title, stat, icon: HIcon }) => {
                   const best = confirmed
-                    .filter((p) => stats[p.id][stat] > 0)
-                    .sort((a, b) => stats[b.id][stat] - stats[a.id][stat])[0];
+                    .filter((p) => (stats[p.id]?.[stat] ?? 0) > 0)
+                    .sort((a, b) => (stats[b.id]?.[stat] ?? 0) - (stats[a.id]?.[stat] ?? 0))[0];
                   if (!best) return null;
                   return (
                     <div key={title} className="flex items-center gap-3">
@@ -534,7 +574,7 @@ export default function MatchPage() {
                         <p className="text-sm font-bold">{best.nickname}</p>
                       </div>
                       <span className="text-sm font-bold text-accent-700">
-                        {stats[best.id][stat]}
+                        {stats[best.id]?.[stat] ?? 0}
                       </span>
                     </div>
                   );

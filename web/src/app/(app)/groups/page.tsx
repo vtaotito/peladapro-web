@@ -18,8 +18,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { myGroups } from "@/lib/mock-data";
 import { getHiddenGroupIds } from "@/lib/group-membership-storage";
+import type { Group } from "@/lib/mock-data";
 import { readUserGroups } from "@/lib/group-storage";
 
 export default function GroupsPage() {
@@ -27,7 +27,7 @@ export default function GroupsPage() {
   const [search, setSearch] = useState("");
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
 
-  const [userGroups, setUserGroups] = useState<typeof myGroups>([]);
+  const [userGroups, setUserGroups] = useState<Group[]>([]);
 
   useEffect(() => {
     setHiddenIds(getHiddenGroupIds());
@@ -35,7 +35,7 @@ export default function GroupsPage() {
   }, [pathname]);
 
   const allGroups = useMemo(
-    () => [...userGroups, ...myGroups],
+    () => [...userGroups],
     [userGroups],
   );
 

@@ -27,7 +27,6 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { findUserGroup } from "@/lib/group-storage";
-import { myGroups } from "@/lib/mock-data";
 import { getMatchResults, type MatchResult } from "@/lib/match-storage";
 import {
   getGroupGames,
@@ -66,7 +65,7 @@ export default function MatchesPage() {
         : "";
 
   const group = useMemo(
-    () => myGroups.find((g) => g.id === groupId) ?? findUserGroup(groupId),
+    () => findUserGroup(groupId),
     [groupId],
   );
 

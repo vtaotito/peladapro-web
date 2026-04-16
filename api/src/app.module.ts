@@ -8,11 +8,13 @@ import { GroupsModule } from './modules/groups/groups.module';
 import { MatchesModule } from './modules/matches/matches.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    HealthModule,
     AuthModule,
     UsersModule,
     PlayersModule,

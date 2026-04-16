@@ -14,8 +14,6 @@ import {
   Shield,
   MapPin,
   Clock,
-  CalendarCheck,
-  Shuffle,
   ClipboardList,
   Info,
   Phone,
@@ -36,26 +34,12 @@ import {
   Send,
   Pin,
   MoreVertical,
-  Heart,
-  ThumbsUp,
-  Laugh,
-  Flame as FlameIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  myGroups,
-  groupMembers,
-  upcomingMatch,
-  recentMatches,
-  currentUser,
-  type MatchStatus,
-} from "@/lib/mock-data";
-import { getInitials, formatTime } from "@/lib/utils";
-import { cn } from "@/lib/utils";
-import { ConfirmButtons, PresenceList } from "@/components/presence-list";
+import { getInitials, cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import {
   markGroupLeft,
@@ -63,7 +47,7 @@ import {
   isGroupHiddenFromUser,
 } from "@/lib/group-membership-storage";
 import { findUserGroup, removeUserGroup } from "@/lib/group-storage";
-import { getMatchConfirmation, setMatchConfirmation, getMatchResults } from "@/lib/match-storage";
+import { getMatchResults } from "@/lib/match-storage";
 import { getOrCreateInvite, buildInviteUrl } from "@/lib/invite-storage";
 import { getGroupMembers, initGroupOwnerAsMember } from "@/lib/member-storage";
 import { getGroupGames } from "@/lib/game-storage";
@@ -90,7 +74,6 @@ export default function GroupDetailPage() {
   const params = useParams();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("info");
-  const [myMatchStatus, setMyMatchStatus] = useState<MatchStatus | null>(null);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -108,14 +91,12 @@ export default function GroupDetailPage() {
         ? params.groupId[0]
         : "";
 
-  const isMockGroup = useMemo(() => myGroups.some((g) => g.id === groupId), [groupId]);
-
   const group = useMemo(
-    () => myGroups.find((g) => g.id === groupId) ?? findUserGroup(groupId),
+    () => findUserGroup(groupId),
     [groupId],
   );
 
-  const userId = user?.id ?? (user?.email === currentUser.email ? currentUser.id : undefined);
+  const userId = user?.id;
   const isProprietor = Boolean(group && userId && group.owner.id === userId);
 
   useEffect(() => {
@@ -131,23 +112,8 @@ export default function GroupDetailPage() {
   }, [groupId, group, router]);
 
   useEffect(() => {
-    if (!groupId || !userId) return;
-    const matchId = upcomingMatch.id ?? groupId;
-    const saved = getMatchConfirmation(matchId, userId);
-    if (saved) setMyMatchStatus(saved);
-  }, [groupId, userId]);
-
-  useEffect(() => {
     if (groupId) setMuralPosts(getGroupPosts(groupId));
   }, [groupId]);
-
-  const handleConfirmPresence = (status: MatchStatus) => {
-    setMyMatchStatus(status);
-    if (userId) {
-      const matchId = upcomingMatch.id ?? groupId;
-      setMatchConfirmation(matchId, userId, status);
-    }
-  };
 
   const handleLeaveGroup = () => {
     if (group) markGroupLeft(group.id);
@@ -167,7 +133,7 @@ export default function GroupDetailPage() {
   const handleCopyInviteLink = () => {
     if (!group) return;
     const invite = getOrCreateInvite(group.id);
-    const url = buildInviteUrl(invite.code);
+    const url = buildInviteUrl(invite.code, group);
     navigator.clipboard.writeText(url).then(() => {
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2500);
@@ -177,7 +143,7 @@ export default function GroupDetailPage() {
   const handleShareInvite = async () => {
     if (!group) return;
     const invite = getOrCreateInvite(group.id);
-    const url = buildInviteUrl(invite.code);
+    const url = buildInviteUrl(invite.code, group);
     const shareData = {
       title: `Convite: ${group.name}`,
       text: `Entra no ${group.name} no PeladaPro! ${group.dayOfWeek} às ${group.time}h — ${group.format}`,
@@ -477,89 +443,6 @@ export default function GroupDetailPage() {
       {/* Tab: Jogos */}
       {activeTab === "jogos" && (
         <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0">
-          {isMockGroup ? (
-            <>
-              <div className="space-y-4">
-                <Card className="overflow-hidden border-none shadow-lg">
-                  <div className="pitch-gradient px-4 py-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-white">Próxima Pelada</p>
-                      <Badge className="border-white/20 bg-white/15 text-white text-[10px]">{upcomingMatch.format}</Badge>
-                    </div>
-                  </div>
-                  <CardContent className="p-4">
-                    <div className="flex flex-col gap-2 mb-3">
-                      <div className="flex items-center gap-2 text-sm text-muted-dark">
-                        <Clock className="h-4 w-4 text-muted" />
-                        {new Date(upcomingMatch.date).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })} • {formatTime(upcomingMatch.date)}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-dark">
-                        <MapPin className="h-4 w-4 text-muted" />
-                        {upcomingMatch.location}
-                      </div>
-                    </div>
-                    <div className="mb-2 flex justify-between text-xs">
-                      <span>Confirmados</span>
-                      <span className="font-bold text-brand-600">{upcomingMatch.confirmed.length}/14</span>
-                    </div>
-                    <div className="mb-4 h-2 overflow-hidden rounded-full bg-brand-100">
-                      <div className="h-full rounded-full bg-brand-500" style={{ width: `${(upcomingMatch.confirmed.length / 14) * 100}%` }} />
-                    </div>
-                    <p className="mb-2 text-xs font-semibold text-muted-dark">Sua presença:</p>
-                    <ConfirmButtons currentStatus={myMatchStatus} onConfirm={handleConfirmPresence} />
-                    <div className="mt-4 flex gap-2">
-                      <Link href={`/groups/${group.id}/shuffle`} className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full">
-                          <Shuffle className="h-4 w-4" />
-                          Sortear times
-                        </Button>
-                      </Link>
-                      <Link href={`/groups/${group.id}/match`} className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full">
-                          <ClipboardList className="h-4 w-4" />
-                          Scout
-                        </Button>
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <CalendarCheck className="h-4 w-4 text-muted" />
-                      Lista de Presença
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <PresenceList confirmed={upcomingMatch.confirmed} maybe={upcomingMatch.maybe} waiting={upcomingMatch.waiting} totalSpots={14} />
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="font-display font-bold">Partidas Anteriores</h3>
-                {recentMatches.map((match) => (
-                  <Card key={match.id} className="border-border/50">
-                    <CardContent className="p-3.5">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-muted">
-                          {new Date(match.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-center gap-4">
-                        <span className="flex-1 text-right text-sm font-semibold">{match.teamA.name}</span>
-                        <span className="font-display text-2xl font-extrabold text-pitch">{match.teamA.score}</span>
-                        <span className="font-bold text-muted-light">x</span>
-                        <span className="font-display text-2xl font-extrabold text-pitch">{match.teamB.score}</span>
-                        <span className="flex-1 text-sm font-semibold">{match.teamB.name}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </>
-          ) : (
             <div className="lg:col-span-2 space-y-4">
               {(() => {
                 const scheduledGames = getGroupGames(groupId).filter((g) => g.status === "scheduled");
@@ -661,43 +544,11 @@ export default function GroupDetailPage() {
                 );
               })()}
             </div>
-          )}
         </div>
       )}
 
       {/* Tab: Membros */}
       {activeTab === "membros" && (
-        isMockGroup ? (
-        <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
-          {groupMembers.map((member) => (
-            <Card key={member.id} className="border-border/50">
-              <CardContent className="flex items-center gap-3 p-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback className="text-xs">{getInitials(member.name)}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-semibold">{member.nickname}</p>
-                    {member.role === "admin" && <Crown className="h-3.5 w-3.5 text-accent-500" />}
-                    {member.role === "moderator" && <Shield className="h-3.5 w-3.5 text-blue-500" />}
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-muted flex-wrap">
-                    {(member.positions || [member.position]).map((pos) => (
-                      <Badge key={pos} variant="secondary" className="text-[9px] px-1.5 py-0">{pos}</Badge>
-                    ))}
-                    <span>{member.matches} jogos</span>
-                    <span>{member.goals} gols</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 rounded-md bg-accent-50 px-2 py-0.5">
-                  <Star className="h-3 w-3 fill-accent-400 text-accent-400" />
-                  <span className="text-xs font-bold text-accent-700">{member.overall}</span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        ) : (
         (() => {
           initGroupOwnerAsMember(groupId, group.owner);
           const realMembers = getGroupMembers(groupId);
@@ -746,60 +597,10 @@ export default function GroupDetailPage() {
             </div>
           );
         })()
-        )
       )}
 
       {/* Tab: Ranking */}
       {activeTab === "ranking" && (
-        isMockGroup ? (
-        <div className="space-y-4">
-          <div className="flex items-end justify-center gap-3 py-4">
-            {[groupMembers[1], groupMembers[0], groupMembers[2]].map((member, idx) => {
-              const heights = ["h-20", "h-28", "h-16"];
-              const bgColors = ["bg-gray-200", "bg-accent-100", "bg-amber-100"];
-              const medals = ["🥈", "🥇", "🥉"];
-              return (
-                <div key={member.id} className="flex flex-col items-center gap-2">
-                  <Avatar className="h-12 w-12 border-2 border-white shadow-md">
-                    <AvatarFallback className="text-sm">{getInitials(member.name)}</AvatarFallback>
-                  </Avatar>
-                  <div className="text-center">
-                    <p className="text-xs font-bold">{member.nickname}</p>
-                    <div className="flex items-center justify-center gap-0.5">
-                      <Star className="h-3 w-3 fill-accent-400 text-accent-400" />
-                      <span className="text-xs font-bold">{member.overall}</span>
-                    </div>
-                  </div>
-                  <div className={cn("flex w-20 items-start justify-center rounded-t-xl pt-2 text-xl", heights[idx], bgColors[idx])}>
-                    {medals[idx]}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="space-y-1.5 lg:max-w-2xl lg:mx-auto">
-            {groupMembers.sort((a, b) => b.overall - a.overall).map((member, idx) => (
-              <div
-                key={member.id}
-                className={cn("flex items-center gap-3 rounded-lg px-3 py-2.5", idx < 3 ? "bg-accent-50/50" : "bg-surface-secondary")}
-              >
-                <span className={cn("w-6 text-center text-sm font-bold", idx === 0 ? "text-accent-600" : idx < 3 ? "text-accent-500" : "text-muted")}>{idx + 1}º</span>
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="text-[10px]">{getInitials(member.name)}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm font-semibold">{member.nickname}</p>
-                  <p className="text-[10px] text-muted">{(member.positions || [member.position]).join(", ")} • {member.matches} jogos</p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Star className="h-3.5 w-3.5 fill-accent-400 text-accent-400" />
-                  <span className="text-sm font-bold">{member.overall}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        ) : (
         <Card className="border-border/50">
           <CardContent className="py-12 text-center">
             <Trophy className="h-10 w-10 text-muted-light mx-auto mb-3" />
@@ -807,7 +608,6 @@ export default function GroupDetailPage() {
             <p className="text-sm text-muted mt-1">Jogue partidas para gerar o ranking do grupo.</p>
           </CardContent>
         </Card>
-        )
       )}
 
       {/* Tab: Mural */}
@@ -864,7 +664,7 @@ export default function GroupDetailPage() {
           </Card>
 
           {/* Posts */}
-          {muralPosts.length === 0 && !isMockGroup ? (
+          {muralPosts.length === 0 ? (
             <Card className="border-dashed">
               <CardContent className="py-12 text-center">
                 <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-surface-tertiary">
@@ -1005,120 +805,6 @@ export default function GroupDetailPage() {
                 );
               })}
 
-              {/* Mock posts for demo groups (after real posts) */}
-              {isMockGroup && (
-                <>
-                  <Card className="border-accent-200 bg-gradient-to-br from-accent-50/40 to-transparent overflow-hidden">
-                    <div className="flex items-center gap-1.5 bg-accent-100/60 px-4 py-1.5">
-                      <Pin className="h-3 w-3 text-accent-600" />
-                      <span className="text-[10px] font-semibold text-accent-700">Fixado</span>
-                    </div>
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <Avatar className="h-9 w-9 shrink-0">
-                          <AvatarFallback className="text-[10px] font-semibold bg-brand-100 text-brand-700">VA</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold">Vitinho</span>
-                            <Badge className="text-[8px] px-1 py-0 bg-accent-100 text-accent-700 border-accent-200">Admin</Badge>
-                            <span className="text-[11px] text-muted ml-auto">2h</span>
-                          </div>
-                          <p className="text-sm mt-1.5">
-                            Fala, galera! Pelada de sexta confirmada. Já temos 14 confirmados! Quem não confirmou ainda, confirma aí. Pagamento no local: R$ 25,00. Bora! ⚽
-                          </p>
-                          <div className="flex items-center gap-1.5 mt-3">
-                            <span className="flex items-center gap-1 rounded-full border border-brand-300 bg-brand-50 px-2 py-0.5 text-xs text-brand-700">
-                              <span>👍</span><span className="font-semibold">8</span>
-                            </span>
-                            <span className="flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-xs text-muted-dark">
-                              <span>⚽</span><span className="font-semibold">5</span>
-                            </span>
-                            <span className="flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-xs text-muted-dark">
-                              <span>🔥</span><span className="font-semibold">3</span>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-border/50">
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <Avatar className="h-9 w-9 shrink-0">
-                          <AvatarFallback className="text-[10px] font-semibold">LK</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold">Lukinha</span>
-                            <span className="text-[11px] text-muted ml-auto">5h</span>
-                          </div>
-                          <p className="text-sm mt-1.5">Quem ficou devendo da semana passada? Lembrem de acertar com o Vitinho. 💰</p>
-                          <div className="flex items-center gap-1.5 mt-3">
-                            <span className="flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-xs text-muted-dark">
-                              <span>😂</span><span className="font-semibold">6</span>
-                            </span>
-                            <span className="flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-xs text-muted-dark">
-                              <span>👍</span><span className="font-semibold">2</span>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-border/50">
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <Avatar className="h-9 w-9 shrink-0">
-                          <AvatarFallback className="text-[10px] font-semibold">GB</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold">Gabigol</span>
-                            <span className="text-[11px] text-muted ml-auto">1d</span>
-                          </div>
-                          <p className="text-sm mt-1.5">Hat-trick na última pelada! Quem vai parar o artilheiro? 😎🔥</p>
-                          <div className="flex items-center gap-1.5 mt-3">
-                            <span className="flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-xs text-muted-dark">
-                              <span>🔥</span><span className="font-semibold">12</span>
-                            </span>
-                            <span className="flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-xs text-muted-dark">
-                              <span>⚽</span><span className="font-semibold">7</span>
-                            </span>
-                            <span className="flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-xs text-muted-dark">
-                              <span>❤️</span><span className="font-semibold">4</span>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-border/50">
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <Avatar className="h-9 w-9 shrink-0">
-                          <AvatarFallback className="text-[10px] font-semibold bg-blue-100 text-blue-700">RM</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold">Rapha</span>
-                            <span className="text-[11px] text-muted ml-auto">2d</span>
-                          </div>
-                          <p className="text-sm mt-1.5">Alguém leva os coletes? Os da semana passada tavam rasgados kk</p>
-                          <div className="flex items-center gap-1.5 mt-3">
-                            <span className="flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-xs text-muted-dark">
-                              <span>😂</span><span className="font-semibold">9</span>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </>
-              )}
             </>
           )}
         </div>
@@ -1252,7 +938,7 @@ export default function GroupDetailPage() {
               </p>
               <div className="flex items-center gap-2">
                 <div className="flex-1 truncate rounded-lg border border-border bg-surface-secondary px-3 py-2.5 text-sm font-mono">
-                  {buildInviteUrl(getOrCreateInvite(group.id).code)}
+                  {buildInviteUrl(getOrCreateInvite(group.id).code, group)}
                 </div>
                 <Button
                   size="icon"
@@ -1270,7 +956,7 @@ export default function GroupDetailPage() {
               )}
               <div className="flex gap-2">
                 <a
-                  href={`https://wa.me/?text=${encodeURIComponent(`Entra no ${group.name} no PeladaPro! ${group.dayOfWeek} às ${group.time}h — ${group.format}\n\n${buildInviteUrl(getOrCreateInvite(group.id).code)}`)}`}
+                  href={`https://wa.me/?text=${encodeURIComponent(`Entra no ${group.name} no PeladaPro! ${group.dayOfWeek} às ${group.time}h — ${group.format}\n\n${buildInviteUrl(getOrCreateInvite(group.id).code, group)}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1"

@@ -26,7 +26,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { findUserGroup } from "@/lib/group-storage";
-import { myGroups } from "@/lib/mock-data";
 import {
   getGroupMembers,
   addGroupMember,
@@ -62,7 +61,7 @@ export default function MembersPage() {
         : "";
 
   const group = useMemo(
-    () => myGroups.find((g) => g.id === groupId) ?? findUserGroup(groupId),
+    () => findUserGroup(groupId),
     [groupId],
   );
 

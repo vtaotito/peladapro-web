@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -12,14 +12,15 @@ import {
   AtSign,
   MapPin,
   Check,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth";
-import { currentUser } from "@/lib/mock-data";
 import { getInitials, cn } from "@/lib/utils";
+import { saveImage, getImage, userAvatarKey } from "@/lib/image-storage";
 
 const positions = [
   { value: "GOL", label: "Goleiro" },
@@ -32,24 +33,31 @@ const positions = [
 export default function EditProfilePage() {
   const { user, updateUser } = useAuth();
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
   const [nickname, setNickname] = useState("");
   const [email, setEmail] = useState("");
   const [selectedPositions, setSelectedPositions] = useState<string[]>(["MEI"]);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (user) {
       setName(user.name || "");
-      setNickname(user.nickname || currentUser.nickname);
+      setNickname(user.nickname || user.name?.split(" ")[0] || "");
       setEmail(user.email || "");
       setSelectedPositions(
         user.positions?.length
           ? user.positions
           : user.position
             ? [user.position]
-            : currentUser.positions || [currentUser.position]
+            : ["MEI"]
       );
+      if (user.id) {
+        const stored = getImage(userAvatarKey(user.id));
+        if (stored) setAvatarUrl(stored);
+      }
     }
   }, [user]);
 
@@ -61,6 +69,18 @@ export default function EditProfilePage() {
       }
       return [...prev, pos];
     });
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+    setUploadingAvatar(true);
+    try {
+      const url = await saveImage(userAvatarKey(user.id), file);
+      setAvatarUrl(url);
+    } catch { /* silently fail */ }
+    setUploadingAvatar(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSave = () => {
@@ -91,21 +111,42 @@ export default function EditProfilePage() {
       <Card className="overflow-hidden border-none shadow-lg">
         <div className="pitch-gradient px-4 py-8 flex flex-col items-center">
           <div className="relative">
-            <div className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-white/20 bg-white/10">
-              <Avatar className="h-full w-full">
-                <AvatarFallback className="bg-white/20 text-2xl font-bold text-white">
-                  {name ? getInitials(name) : "?"}
-                </AvatarFallback>
-              </Avatar>
+            <div className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-white/20 bg-white/10 overflow-hidden">
+              {uploadingAvatar ? (
+                <Loader2 className="h-8 w-8 animate-spin text-white/60" />
+              ) : avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+              ) : (
+                <Avatar className="h-full w-full">
+                  <AvatarFallback className="bg-white/20 text-2xl font-bold text-white">
+                    {name ? getInitials(name) : "?"}
+                  </AvatarFallback>
+                </Avatar>
+              )}
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarUpload}
+              className="hidden"
+            />
             <button
-              className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-gray-400 text-white shadow-lg cursor-not-allowed"
-              title="Upload de foto em breve"
-              onClick={() => alert("Upload de foto estará disponível em breve!")}
+              className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg hover:bg-brand-700 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingAvatar}
             >
               <Camera className="h-4 w-4" />
             </button>
           </div>
+          {avatarUrl && (
+            <button
+              className="mt-3 text-xs text-white/70 hover:text-white underline"
+              onClick={() => setAvatarUrl(null)}
+            >
+              Remover foto
+            </button>
+          )}
         </div>
       </Card>
 
